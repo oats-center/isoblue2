@@ -1,0 +1,36 @@
+{
+	"namespace": "org.isoblue",
+	"type": "record",
+	"name": "j1939msg",
+	"fields": [
+		{
+			"name": "timestamp",
+			"type": "double"
+		},
+		{
+			"name": "is_remote_frame",
+			"type": "boolean"
+		},
+		{
+			"name": "extended_id",
+			"type": "boolean"
+		},
+		{
+			"name": "is_error_frame",
+			"type": "boolean"
+		},
+		{
+			"name": "arbitration_id",
+			"type": "int"
+		},
+		{
+			"name": "dlc",
+			"type": "int"
+		},
+		{
+			"name": "data",
+			"type": "bytes"
+		}
+	]
+}
+
