@@ -1,7 +1,7 @@
 {
 	"namespace": "org.isoblue",
 	"type": "record",
-	"name": "j1939msg",
+	"name": "rawcan",
 	"fields": [
 		{
 			"name": "timestamp",

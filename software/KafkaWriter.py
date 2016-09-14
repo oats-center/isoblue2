@@ -25,7 +25,7 @@ class KafkaWriter(Listener):
        if not self.kafka_setup:
            self._create_producer()
 
-       self.fp = open("j1939msg.avsc").read()
+       self.fp = open("raw_can.avsc").read()
        schema = avro.schema.parse(self.fp)
        writer = avro.io.DatumWriter(schema)
 
