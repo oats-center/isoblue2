@@ -1,0 +1,7 @@
+# /etc/udev/rules.d/70-isoblue2-interfaces.rules
+
+# CAN interface on engine bus
+SUBSYSTEM=="net", KERNEL=="can[0-9]*", KERNELS=="2090000.can", NAME="ib_eng", TAG+="systemd", ENV{SYSTEMD_WANTS}="ib_up@ib_eng.service"
+
+# CAN interface on implement bus
+SUBSYSTEM=="net", KERNEL=="can[0-9]*", KERNELS=="2094000.can", NAME="ib_imp", TAG+="systemd", ENV{SYSTEMD_WANTS}="ib_up@ib_imp.service"
