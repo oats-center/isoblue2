@@ -21,9 +21,9 @@ if __name__ == "__main__":
 
     # create kafka producer
     producer = KafkaProducer(bootstrap_servers=SERVER_ADDR)
-    
+
     # load avro schema and setup encoder
-    fp = open("gps.avsc").read()
+    fp = open("/opt/isoblue2/kafka_gps_log/gps.avsc").read()
     schema = avro.schema.parse(fp)
     writer = avro.io.DatumWriter(schema)
     bytes_writer = io.BytesIO()
@@ -38,20 +38,8 @@ if __name__ == "__main__":
                         # if any key value is empty, set it to None
                         # so that it fits into the avro schema
                         if data_stream.TPV[key] == 'n/a':
-                            data_stream.TPV[key] = None 
-                    print("t: ", data_stream.TPV["time"])
-                    print("lat: ", data_stream.TPV["lat"])
-                    print("lon: ", data_stream.TPV["lon"])
-                    print("alt: ", data_stream.TPV["alt"])
-                    print("epx: ", data_stream.TPV["epx"])
-                    print("epy: ", data_stream.TPV["epy"])
-                    print("epv: ", data_stream.TPV["epv"])
-                    print("track: ", data_stream.TPV["track"])
-                    print("speed: ", data_stream.TPV["speed"])
-                    print("climb: ", data_stream.TPV["climb"])
-                    print("epd: ", data_stream.TPV["epd"])
-                    print("eps: ", data_stream.TPV["eps"])
-                    print("epc: ", data_stream.TPV["epc"])
+                            data_stream.TPV[key] = None
+
                     writer.write({
                         "timestamp":data_stream.TPV["time"],
                         "lat":data_stream.TPV["lat"],
@@ -68,9 +56,8 @@ if __name__ == "__main__":
                         "epc":data_stream.TPV["epc"]
                         },
                         encoder)
-                    
+
                     bytes_msg = bytes_writer.getvalue()
                     producer.send(TOPIC, bytes_msg)
     except KeyboardInterrupt:
         producer.flush()
-        
