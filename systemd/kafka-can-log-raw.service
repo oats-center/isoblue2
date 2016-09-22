@@ -10,8 +10,8 @@ ConditionPathExists=/opt/isoblue2/kafka_can_log_raw
 [Service]
 Type=simple
 ExecStart=/opt/isoblue2/kafka_can_log_raw/kafka_can_log_raw.py
-# Restart=on-failure
-# Restart=2s
+Restart=on-failure
+RestartSec=5
 
 [Install]
 WantedBy=multi-user.target
