@@ -9,8 +9,8 @@ from KafkaWriter import KafkaWriter
 
 if __name__ == "__main__":
 
-    channel0 = 'vcan0'
-    channel1 = 'vcan1'
+    channel0 = 'ib_imp'
+    channel1 = 'ib_eng'
 
     bus0 = can.interface.Bus(channel0, bustype='socketcan')
     bus1 = can.interface.Bus(channel1, bustype='socketcan')

@@ -1,0 +1,59 @@
+{
+	"namespace": "org.isoblue",
+	"type": "record",
+	"name": "gps",
+	"fields": [
+		{
+			"name": "time",
+			"type": ["null", "string"]
+		},
+		{
+			"name": "lat",
+			"type": ["null", "float"]
+		},
+		{
+			"name": "lon",
+			"type": ["null", "float"]
+		},
+		{
+			"name": "alt",
+			"type": ["null", "float"]
+		},
+		{
+			"name": "epx",
+			"type": ["null", "float"]
+		},
+		{
+			"name": "epy",
+			"type": ["null", "float"]
+		},
+		{
+			"name": "epv",
+			"type": ["null", "float"]
+		},
+		{
+			"name": "track",
+			"type": ["null", "float"]
+		},
+		{
+			"name": "speed",
+			"type": ["null", "float"]
+		},
+		{
+			"name": "climb",
+			"type": ["null", "float"]
+		},
+		{
+			"name": "epd",
+			"type": ["null", "float"]
+		},
+		{
+			"name": "eps",
+			"type": ["null", "float"]
+		},
+		{
+			"name": "epc",
+			"type": ["null", "float"]
+		}
+	]
+}
