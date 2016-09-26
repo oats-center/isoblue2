@@ -18,14 +18,13 @@ class KafkaWriter(Listener):
 
    def _create_producer(self):
        self.producer = KafkaProducer(bootstrap_servers=self.server_addr)
-
        self.kafka_setup = True
 
    def on_message_received(self, msg):
        if not self.kafka_setup:
            self._create_producer()
 
-       self.fp = open("raw_can.avsc").read()
+       self.fp = open("/opt/isoblue2/kafka_can_log_raw/raw_can.avsc").read()
        schema = avro.schema.parse(self.fp)
        writer = avro.io.DatumWriter(schema)
 

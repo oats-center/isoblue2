@@ -10,9 +10,11 @@ ConditionPathExists=/opt/kafka
 [Service]
 Type=simple
 ExecStart=/opt/kafka/bin/zookeeper-server-start.sh /opt/kafka/config/zookeeper.properties
+ExecStartPost=/bin/bash -c '/bin/echo 0 > /sys/class/leds/LED_5_RED/brightness'
 ExecStop=/opt/kafka/bin/zookeeper-server-stop.sh
-# Restart=on-failure
-# Restart=2s
+ExecStopPost=/bin/bash -c '/bin/echo 255 > /sys/class/leds/LED_5_RED/brightness'
+Restart=on-failure
+RestartSec=5
 
 [Install]
 WantedBy=multi-user.target
