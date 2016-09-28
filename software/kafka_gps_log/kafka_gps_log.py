@@ -6,6 +6,7 @@ import sys
 import avro
 import avro.schema
 import avro.io
+import calendar
 
 from gps3 import gps3
 from kafka import KafkaProducer
@@ -28,47 +29,53 @@ if __name__ == "__main__":
     # load avro schema and setup encoder
     fp = open("/opt/isoblue2/kafka_gps_log/gps.avsc").read()
     schema = avro.schema.parse(fp)
-    writer = avro.io.DatumWriter(schema)
-    bytes_writer = io.BytesIO()
-    encoder = avro.io.BinaryEncoder(bytes_writer)
 
     def sigterm_handler(signal, frame):
         producer.flush()
         sys.exit(0)
 
-    while True:
-        for new_data in gps_socket:
-            if new_data:
-                data_stream.unpack(new_data)
-                for key in data_stream.TPV:
-                    # if any key value is empty, set it to None
-                    # so that it fits into the avro schema
-                    if data_stream.TPV[key] == 'n/a':
-                        data_stream.TPV[key] = None
+    signal.signal(signal.SIGTERM, sigterm_handler)
 
-                if data_stream.TPV['time']:
-                    # convert ISO8601 date and time to unix epoch time
-                    utc_dt = datetime.strptime(data_stream.TPV['time'], \
-                            '%Y-%m-%dT%H:%M:%S.%fZ')
-                    data_stream.TPV['time'] = (utc_dt - datetime(1970, 1, 1)).total_seconds()
+    for new_data in gps_socket:
+        if new_data:
+            epoch_time = None
+            data_stream.unpack(new_data)
+            tmp = data_stream.TPV.copy()
 
-                writer.write({
-                    "time":data_stream.TPV['time'],
-                    "lat":data_stream.TPV["lat"],
-                    "lon":data_stream.TPV["lon"],
-                    "alt":data_stream.TPV["alt"],
-                    "epx":data_stream.TPV["epx"],
-                    "epy":data_stream.TPV["epy"],
-                    "epv":data_stream.TPV["epv"],
-                    "track":data_stream.TPV["track"],
-                    "speed":data_stream.TPV["speed"],
-                    "climb":data_stream.TPV["climb"],
-                    "epd":data_stream.TPV["epd"],
-                    "eps":data_stream.TPV["eps"],
-                    "epc":data_stream.TPV["epc"]
-                    },
-                    encoder)
+#TODO: find a proper way to parse the time
 
-                bytes_msg = bytes_writer.getvalue()
-                producer.send(TOPIC, bytes_msg)
-                signal.signal(signal.SIGTERM, sigterm_handler)
+#            if tmp['time'] != "n/a":
+                # convert ISO8601 date and time to unix epoch time
+#                utc_dt = datetime.strptime(tmp['time'], \
+#                        '%Y-%m-%dT%H:%M:%S.%fZ')
+#                epoch_time = (utc_dt - datetime(1970, 1, 1)).total_seconds()
+
+            for key in tmp:
+                # if any key value is empty, set it to None
+                # so that it fits into the avro schema
+                if tmp[key] == "n/a":
+                    tmp[key] = None
+
+            writer = avro.io.DatumWriter(schema)
+            bytes_writer = io.BytesIO()
+            encoder = avro.io.BinaryEncoder(bytes_writer)
+            writer.write({
+                "time":tmp["time"],
+                "lat":tmp["lat"],
+                "lon":tmp["lon"],
+                "alt":tmp["alt"],
+                "epx":tmp["epx"],
+                "epy":tmp["epy"],
+                "epv":tmp["epv"],
+                "track":tmp["track"],
+                "speed":tmp["speed"],
+                "climb":tmp["climb"],
+                "epd":tmp["epd"],
+                "eps":tmp["eps"],
+                "epc":tmp["epc"]
+                },
+                encoder)
+
+            bytes_msg = bytes_writer.getvalue()
+            producer.send(TOPIC, bytes_msg)
+    

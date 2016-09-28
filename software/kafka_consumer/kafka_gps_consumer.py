@@ -11,6 +11,7 @@ schema_path = "../kafka_gps_log/gps.avsc"
 schema = avro.schema.parse(open(schema_path).read())
 
 for msg in consumer:
+    print "***************************"
     bytes_reader = io.BytesIO(msg.value)
     decoder = avro.io.BinaryDecoder(bytes_reader)
     reader = avro.io.DatumReader(schema)

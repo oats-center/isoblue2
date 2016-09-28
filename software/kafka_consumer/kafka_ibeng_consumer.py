@@ -6,12 +6,12 @@ import io
 
 from kafka import KafkaConsumer
 
-consumer = KafkaConsumer("ib_eng", auto_offset_reset="earliest")
+consumer = KafkaConsumer("ib_eng")
 schema_path = "../kafka_can_log_raw/raw_can.avsc"
 schema = avro.schema.parse(open(schema_path).read())
 
 for msg in consumer:
-    print msg.value
+    print "***************************"
     bytes_reader = io.BytesIO(msg.value)
     decoder = avro.io.BinaryDecoder(bytes_reader)
     reader = avro.io.DatumReader(schema)
