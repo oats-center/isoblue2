@@ -3,6 +3,7 @@ import io
 import avro
 import avro.schema
 import avro.io
+import sys
 
 from can import Listener
 from kafka import KafkaProducer
@@ -11,18 +12,12 @@ class KafkaWriter(Listener):
    '''Sends received CAN data to a kafka topic.
    '''
 
-   def __init__(self, topic, server_addr):
+   def __init__(self, topic, producer):
        self.topic = topic
-       self.server_addr = server_addr
-       self.kafka_setup = False
+       self.producer = producer
 
-   def _create_producer(self):
-       self.producer = KafkaProducer(bootstrap_servers=self.server_addr)
-       self.kafka_setup = True
 
    def on_message_received(self, msg):
-       if not self.kafka_setup:
-           self._create_producer()
 
        self.fp = open("/opt/isoblue2/kafka_can_log_raw/raw_can.avsc").read()
        schema = avro.schema.parse(self.fp)

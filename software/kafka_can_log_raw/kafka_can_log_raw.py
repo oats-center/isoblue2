@@ -8,6 +8,7 @@ import sys
 import can
 
 from KafkaWriter import KafkaWriter
+from kafka import KafkaProducer
 
 if __name__ == "__main__":
 
@@ -17,8 +18,11 @@ if __name__ == "__main__":
     bus0 = can.interface.Bus(channel0, bustype='socketcan')
     bus1 = can.interface.Bus(channel1, bustype='socketcan')
 
-    kafka_writer0 = KafkaWriter('ib_imp', 'vip4.ecn.purdue.edu')
-    kafka_writer1 = KafkaWriter('ib_eng', 'vip4.ecn.purdue.edu')
+    producer0 = KafkaProducer(bootstrap_servers='localhost')
+    producer1 = KafkaProducer(bootstrap_servers='localhost')
+
+    kafka_writer0 = KafkaWriter('ibimp', producer0)
+    kafka_writer1 = KafkaWriter('ibeng', producer1)
 
     notifier0 = can.Notifier(bus0, [kafka_writer0], timeout=0.1)
     notifier1 = can.Notifier(bus1, [kafka_writer1], timeout=0.1)
@@ -28,7 +32,7 @@ if __name__ == "__main__":
         notifier0.stop()
         bus1.shutdown()
         notifier1.stop()
-        sys.exit(0)
+        sys.exit("kafka-can-log-raw exits")
 
     while True:
         time.sleep(1)

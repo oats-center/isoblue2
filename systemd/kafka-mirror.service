@@ -1,0 +1,22 @@
+# /etc/systemd/system/kafka-mirror.service
+
+[Unit]
+Description=Apache Kafka Mirror Maker Service
+Documentation=http://kafka.apache.org/documentation.html
+Requires=zookeeper.service
+Before=sleep.target
+After=network.target zookeeper.service kafka-server.service
+ConditionPathExists=/opt/kafka
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+ExecStart=/bin/bash -c "/opt/kafka/bin/kafka-mirror-maker.sh --consumer.config /opt/kafka/config/consumer.properties --producer.config /opt/kafka/config/isoblueProducer.properties --whitelist 'gps|ibimp|ibeng'"
+ExecStartPost=/bin/bash -c '/bin/echo 0 > /sys/class/leds/LED_4_RED/brightness'
+ExecStopPost=/bin/bash -c '/bin/echo 255 > /sys/class/leds/LED_4_RED/brightness'
+Restart=always
+RestartSec=5
+SuccessExitStatus=143
+
+[Install]
+WantedBy=multi-user.target sleep.target

@@ -4,7 +4,8 @@
 Description=Apache Kafka Service
 Documentation=http://kafka.apache.org/documentation.html
 Requires=zookeeper.service
-After=network.target zookeeper.service
+Before=shutdown.target sleep.target
+After=network.target zookeeper.service dev-sda1.device
 ConditionPathExists=/opt/kafka
 
 [Service]
@@ -13,8 +14,8 @@ ExecStart=/opt/kafka/bin/kafka-server-start.sh /opt/kafka/config/server.properti
 ExecStartPost=/bin/bash -c '/bin/echo 0 > /sys/class/leds/LED_4_RED/brightness'
 ExecStop=/opt/kafka/bin/kafka-server-stop.sh
 ExecStopPost=/bin/bash -c '/bin/echo 255 > /sys/class/leds/LED_4_RED/brightness'
-# Restart=on-failure
-# Restart=2s
+Restart=on-failure
+RestartSec=2s
 
 [Install]
 WantedBy=multi-user.target

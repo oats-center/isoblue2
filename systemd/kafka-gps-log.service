@@ -12,7 +12,7 @@ Type=simple
 ExecStart=/opt/isoblue2/kafka_gps_log/kafka_gps_log.py
 ExecStartPost=/bin/bash -c '/bin/echo heartbeat > /sys/class/leds/LED_4_GREEN/trigger'
 ExecStopPost=/bin/bash -c '/bin/echo none > /sys/class/leds/LED_4_GREEN/trigger'
-Restart=on-failure
+Restart=always
 RestartSec=5
 
 [Install]

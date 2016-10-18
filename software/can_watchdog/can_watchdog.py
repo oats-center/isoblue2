@@ -12,7 +12,7 @@ from CanListenerWatchdog import CanListenerWatchdog
 if __name__ == "__main__":
 
     def suspendHandler():
-        os.system("echo mem > /sys/power/state")
+        os.system("systemctl suspend")
 
     def sigterm_handler(signal, frame):
         bus0.shutdown()
@@ -27,12 +27,13 @@ if __name__ == "__main__":
     bus0 = can.interface.Bus(channel0, bustype='socketcan')
     bus1 = can.interface.Bus(channel1, bustype='socketcan')
 
-    watchdog0 = CanListenerWatchdog(10, suspendHandler)
-    watchdog1 = CanListenerWatchdog(10, suspendHandler)
+    watchdog0 = CanListenerWatchdog(30, suspendHandler)
+    watchdog1 = CanListenerWatchdog(30, suspendHandler)
 
     notifier0 = can.Notifier(bus0, [watchdog0], timeout=0.1)
     notifier1 = can.Notifier(bus1, [watchdog1], timeout=0.1)
 
+    signal.signal(signal.SIGTERM, sigterm_handler)
+
     while True:
         time.sleep(1)
-        signal.signal(signal.SIGTERM, sigterm_handler)

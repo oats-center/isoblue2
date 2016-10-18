@@ -13,7 +13,7 @@ from kafka import KafkaProducer
 from datetime import datetime
 
 TOPIC = "gps"
-SERVER_ADDR = "vip4.ecn.purdue.edu"
+SERVER_ADDR = "localhost"
 
 if __name__ == "__main__":
 

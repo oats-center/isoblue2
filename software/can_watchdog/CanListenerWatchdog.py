@@ -9,16 +9,16 @@ class CanListenerWatchdog(Listener):
    def __init__(self, timeout, userHandler=None):  # timeout in seconds
        self.timeout = timeout
        self.handler = userHandler if userHandler is not None else self.defaultHandler
-       self.timer = Timer(self.timeout, self.handler).start()
+       self.timer = Timer(self.timeout, self.handler)
+       self.timer.start()
 
    def on_message_received(self, msg):
-       if self.timer is not None:
-           self.timer.cancel()
-           self.timer = Timer(self.timeout, self.handler).start()
+       self.timer.cancel()
+       self.timer = Timer(self.timeout, self.handler)
+       self.timer.start()
 
    def stop(self):
-       if self.Timer is not None:
-           self.timer.cancel()
+       self.timer.cancel()
 
    def defaultHandler(self):
        raise self

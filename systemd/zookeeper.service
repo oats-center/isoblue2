@@ -4,6 +4,7 @@
 Description=Apache ZooKeeper Service
 Documentation=http://kafka.apache.org/documentation.html
 Requires=network.target remote-fs.target 
+Before=shutdown.target sleep.target
 After=network.target remote-fs.target
 ConditionPathExists=/opt/kafka
 

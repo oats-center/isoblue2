@@ -6,7 +6,7 @@ After=chronyd.service dev-ttyUSB0.device
 
 [Service]
 EnvironmentFile=/etc/default/gpsd
-ExecStart=/usr/sbin/gpsd -n -N /dev/ttyUSB0 nmea2000://ib_imp nmea2000://ib_eng  
+ExecStart=/usr/sbin/gpsd -n -N /dev/ttyUSB0
 
 [Install]
 WantedBy=multi-user.target                                                      
