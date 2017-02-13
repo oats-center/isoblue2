@@ -29,6 +29,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <signal.h>
+#include <errno.h>
 
 #include <net/if.h>
 #include <sys/types.h>
@@ -40,30 +42,29 @@
 #include <linux/can/raw.h>
 
 #include <avro.h>
+#include <librdkafka/rdkafka.h>
 
-#ifdef DEFLATE_CODEC
-#define QUICKSTOP_CODEC  "deflate"
-#else
-#define QUICKSTOP_CODEC  "null"
-#endif
+static int frame_cnt = 0;
 
-
-char buf[22];
 const char RAW_CAN_SCHEMA[] =
 "{\"type\":\"record\",\
   \"name\":\"rawcan\",\
   \"fields\":[\
 	{\"name\": \"timestamp\", \"type\": \"double\"},\
 	{\"name\": \"is_error_frame\", \"type\": \"boolean\"},\
-	{\"name\": \"extended_id\", \"type\": \"boolean\"},\
+	{\"name\": \"is_extended_frame\", \"type\": \"boolean\"},\
 	{\"name\": \"arbitration_id\", \"type\": \"int\"},\
 	{\"name\": \"dlc\", \"type\": \"int\"},\
 	{\"name\": \"payload\", \"type\": \"bytes\"},\
 	{\"name\": \"is_remote_frame\", \"type\": \"boolean\"}]}";
 
-avro_schema_t raw_can_schema;
-avro_writer_t writer;
+void timer_handler(int signum) {
+	fprintf(stdout, "%d\n", frame_cnt);
+	fflush(stdout);
+	frame_cnt = 0;
+}
 
+//DEMO
 void print_frame(FILE *fd, char interface[], long sec, long usec,
 		struct can_frame *cf) {
 	int i;
@@ -80,25 +81,14 @@ void print_frame(FILE *fd, char interface[], long sec, long usec,
 	fflush(fd);
 }
 
-/* Parse schema into a schema data structure */
-void init_schema(void)
-{
-	//TODO: load from file
-	if (avro_schema_from_json_literal(RAW_CAN_SCHEMA, &raw_can_schema)) {
-					fprintf(stderr, "Unable to parse raw can schema\n");
-					exit(EXIT_FAILURE);
-	}
-}
-
-/* Create a datum to match the person schema and save it */
-void add_raw_can_frame(FILE *fd, avro_writer_t writer, double timestamp, struct can_frame *cf)
-{
+/* Add received CAN frame's data to a record */
+void add_raw_can_frame(avro_schema_t *raw_can, struct can_frame *cf,
+	double timestamp) {
 	uint8_t is_extended_frame = cf->can_id & CAN_EFF_FLAG;
 
-	avro_datum_t raw_can = avro_record(raw_can_schema);
 	avro_datum_t ts_datum = avro_double(timestamp);
-	avro_datum_t rf_datum = avro_boolean(cf->can_id & CAN_RTR_FLAG > 0);
-	avro_datum_t ie_datum = avro_boolean(cf->can_id & CAN_ERR_FLAG > 0);
+	avro_datum_t rf_datum = avro_boolean((cf->can_id & CAN_RTR_FLAG) > 0);
+	avro_datum_t ie_datum = avro_boolean((cf->can_id & CAN_ERR_FLAG) > 0);
 	avro_datum_t ei_datum = avro_boolean(is_extended_frame);
 
 	avro_datum_t aid_datum;
@@ -109,43 +99,19 @@ void add_raw_can_frame(FILE *fd, avro_writer_t writer, double timestamp, struct 
 		aid_datum = avro_int32(cf->can_id & CAN_SFF_MASK);
 	}
 
-  avro_datum_t dlc_datum = avro_int32(cf->can_dlc);
-	avro_datum_t pl_datum = avro_bytes(cf->data, 8);
+	avro_datum_t dlc_datum = avro_int32(cf->can_dlc);
+	avro_datum_t pl_datum = avro_bytes((const char *)cf->data, 8);
 
-	if (avro_record_set(raw_can, "timestamp", ts_datum)
-			|| avro_record_set(raw_can, "is_remote_frame", rf_datum)
-			|| avro_record_set(raw_can, "is_error_frame", ie_datum)
-			|| avro_record_set(raw_can, "extended_id", ei_datum)
-			|| avro_record_set(raw_can, "dlc", dlc_datum)
-			|| avro_record_set(raw_can, "payload", pl_datum)
-			|| avro_record_set(raw_can, "arbitration_id", aid_datum)) {
+	if (avro_record_set(*raw_can, "timestamp", ts_datum)
+		|| avro_record_set(*raw_can, "is_remote_frame", rf_datum)
+		|| avro_record_set(*raw_can, "is_error_frame", ie_datum)
+		|| avro_record_set(*raw_can, "is_extended_frame", ei_datum)
+		|| avro_record_set(*raw_can, "dlc", dlc_datum)
+		|| avro_record_set(*raw_can, "payload", pl_datum)
+		|| avro_record_set(*raw_can, "arbitration_id", aid_datum)) {
 		fprintf(stderr, "Unable to set record\n");
 		exit(EXIT_FAILURE);
 	}
-
-	if (avro_write_data(writer, raw_can_schema, raw_can)) {
-					fprintf(stderr, "Unable to write raw_can datum to memory\n");
-					exit(EXIT_FAILURE);
-	}
-/*
-        if (avro_file_writer_append(db, raw_can)) {
-                fprintf(stderr,
-                        "Unable to write raw_can datum to memory buffer\nMessage: %s\n", avro_strerror());
-                exit(EXIT_FAILURE);
-        }
-*/
-
-	int64_t msg_size = avro_size_data(writer, raw_can_schema, raw_can);
-
-	fprintf(stdout, "msg size is %lld\nwriter_tell is %lld\n", msg_size, avro_writer_tell(writer));
-
-	fprintf(stdout, "sizeof(buf[0])=%d\n", sizeof(buf[0]));
-
-	fwrite(buf, sizeof(buf[0]), msg_size, fd);
-
-	avro_writer_reset(writer);
-
-	fflush(fd);
 
 	/* Decrement all our references to prevent memory from leaking */
 	avro_datum_decref(ts_datum);
@@ -155,69 +121,119 @@ void add_raw_can_frame(FILE *fd, avro_writer_t writer, double timestamp, struct 
 	avro_datum_decref(aid_datum);
 	avro_datum_decref(dlc_datum);
 	avro_datum_decref(pl_datum);
-	avro_datum_decref(raw_can);
 
-	//fprintf(stdout, "Successfully added %s, %s id=%"PRId64"\n", last, first, id);
+	frame_cnt++;
 }
 
 int main(int argc, char *argv[]) {
-	int s;
-	int rval;
+	/* fd for logging */
+	FILE *fd;
 
-	struct sockaddr_can addr;
-	can_err_mask_t err_mask;
-	struct ifreq ifr;
-	FILE *fo, *fe, *fd;
-
-	const char *dbname = "raw_can.db";
-
-	/* Initialize the schema structure from JSON */
-	init_schema();
-
-/*
-	remove(dbname);
-	rval = avro_file_writer_create(dbname, raw_can_schema, &db);
-	if (rval) {
-					fprintf(stderr, "There was an error creating %s\n", dbname);
-					fprintf(stderr, " error message: %s\n", avro_strerror());
-					exit(EXIT_FAILURE);
-	}
-*/
-
-	writer = avro_writer_memory(buf, sizeof(buf));
 	fd = fopen(argv[3], "w");
 
-	if((s = socket(PF_CAN, SOCK_RAW, CAN_RAW)) < 0) {
+	/* Timer stuff variables */
+	struct sigaction sa;
+	struct itimerval timer;
+
+	/* CAN stuff variables */
+	int s;
+	struct sockaddr_can addr;
+	struct ifreq ifr;
+	can_err_mask_t err_mask;
+
+	/* Avro stuff variables */
+	/* One CAN frame is 25 bytes at most when serialized with Avro */
+	/* Doubled the buffer size to be safe */
+	char buf[50];
+	avro_writer_t writer;
+	avro_schema_t raw_can_schema;
+	avro_datum_t raw_can;
+
+	/* Kafka variables */
+	rd_kafka_t *rk;
+	rd_kafka_topic_t *rkt;
+	rd_kafka_conf_t *conf;
+	rd_kafka_topic_conf_t *topic_conf;
+
+	char *brokers = "localhost:9092";
+	char errstr[512];
+	int partition = RD_KAFKA_PARTITION_UA;
+
+	/* Kafka stuff */
+	conf = rd_kafka_conf_new();
+
+	rd_kafka_conf_set(conf, "batch.num.messages", "20000", errstr, sizeof(errstr));
+	rd_kafka_conf_set(conf, "queue.buffering.max.messages", "1000000", errstr, sizeof(errstr));
+	rd_kafka_conf_set(conf, "queue.buffering.max.ms", "1", errstr, sizeof(errstr));
+
+	topic_conf = rd_kafka_topic_conf_new();
+	
+	rd_kafka_topic_conf_set(topic_conf, "request.required.acks", "0", errstr, sizeof(errstr));
+
+	if (!(rk = rd_kafka_new(RD_KAFKA_PRODUCER, conf, errstr, sizeof(errstr)))) {
+		fprintf(stderr, "%% Failed to create new producer: %s\n", errstr);
+	}
+	
+	if (rd_kafka_brokers_add(rk, brokers) == 0) {
+		fprintf(stderr, "%% No valid brokers specified\n");
+		exit(EXIT_FAILURE);
+	}
+
+	rkt = rd_kafka_topic_new(rk, argv[2], topic_conf);
+	topic_conf = NULL;
+
+	/* Install timer_handler as the signal handler for SIGVTALRM. */
+	memset (&sa, 0, sizeof(sa));
+	sa.sa_handler = &timer_handler;
+	sigaction(SIGALRM, &sa, NULL);
+
+	/* Configure the timer to expire after 1 sec... */
+	timer.it_value.tv_sec = 1;
+	timer.it_value.tv_usec = 0;
+	/* ... and every 1 sec after that. */
+	timer.it_interval.tv_sec = 1;
+	timer.it_interval.tv_usec = 0;
+
+	/* Start a real timer. It counts down whenever this process is
+	 * executing. */
+	setitimer(ITIMER_REAL, &timer, NULL);
+
+	/*Initialize the schema structure from JSON */
+	if (avro_schema_from_json_literal(RAW_CAN_SCHEMA, &raw_can_schema)) {
+		fprintf(stderr, "Unable to parse raw can schema\n");
+		exit(EXIT_FAILURE);
+	}
+
+	/* Create avro writer */
+	writer = avro_writer_memory(buf, sizeof(buf));
+
+	/* Create avro record based on the schema */
+	raw_can = avro_record(raw_can_schema);
+
+	/* Create CAN socket */
+	if ((s = socket(PF_CAN, SOCK_RAW, CAN_RAW)) < 0) {
 		return EXIT_FAILURE;
 	}
 
-	strcpy(ifr.ifr_name, argv[2]);
+	/* Get the interface ID from arguments */
+	strcpy(ifr.ifr_name, argv[1]);
 	ioctl(s, SIOCGIFINDEX, &ifr);
 
-	/* Listen on all CAN interfaces */
+	/* Listen on the CAN interface */
 	addr.can_family  = AF_CAN;
 	addr.can_ifindex = ifr.ifr_ifindex;
 
-	if(bind(s, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
+	if (bind(s, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
 		return EXIT_FAILURE;
 	}
 
 	/* Receive all error frames */
 	err_mask = CAN_ERR_MASK;
-	setsockopt(s, SOL_CAN_RAW, CAN_RAW_ERR_FILTER,
-			&err_mask, sizeof(err_mask));
+	setsockopt(s, SOL_CAN_RAW, CAN_RAW_ERR_FILTER, &err_mask, sizeof(err_mask));
 
 	/* Timestamp frames */
 	const int val = 1;
 	setsockopt(s, SOL_SOCKET, SO_TIMESTAMP, &val, sizeof(val));
-
-	/* Log to first argument as a file */
-	if(argc > 1) {
-		fo = fe = fopen(argv[1], "w");
-	} else {
-		fo = stdout;
-		fe = stderr;
-	}
 
 	/* Buffer received CAN frames */
 	struct can_frame cf;
@@ -234,33 +250,31 @@ int main(int argc, char *argv[]) {
 	msg.msg_iovlen = 1;
 	iov.iov_base = &cf;
 	iov.iov_len = sizeof(cf);
-	while(1) {
-		// ADDED:
-		double timestamp;
 
-		// REMOVE WHEN YOU REMOVE print_frame
+	while (1) {
+		double timestamp;
 		long sec;
 		long usec;
 
 		/* Print received CAN frames */
-		if(recvmsg(s, &msg, 0) <= 0) {
-			perror("recvmsg");
+		if (recvmsg(s, &msg, 0) <= 0) {
+			if (errno != EINTR) {
+				perror("recvmsg");
+			}
 			continue;
 		}
 
 		/* Find approximate receive time */
 		struct cmsghdr *cmsg;
-		for(cmsg = CMSG_FIRSTHDR(&msg); cmsg != NULL;
+		for (cmsg = CMSG_FIRSTHDR(&msg); cmsg != NULL;
 				cmsg = CMSG_NXTHDR(&msg, cmsg)) {
-			if(cmsg->cmsg_level == SOL_SOCKET &&
-					cmsg->cmsg_type == SO_TIMESTAMP) {
-				// ADDED: Moved the time calc here to avoid the memcpy
+			if (cmsg->cmsg_level == SOL_SOCKET && cmsg->cmsg_type == SO_TIMESTAMP) {
 				struct timeval *tv = (struct timeval *) CMSG_DATA(cmsg);
 				timestamp = tv->tv_sec + tv->tv_usec / 1000000.0;
-				
-				// REMOVE WHEN YOU REMOVE print_frame
+
 				sec = tv->tv_sec;
 				usec = tv->tv_usec;
+
 				break;
 			}
 		}
@@ -269,21 +283,40 @@ int main(int argc, char *argv[]) {
 		ifr.ifr_ifindex = addr.can_ifindex;
 		ioctl(s, SIOCGIFNAME, &ifr);
 
-		/* Print fames to STDOUT, errors to STDERR */
-		// REMOVE AT SOME POINT
-		if(cf.can_id & CAN_ERR_FLAG) {
-			print_frame(fe, ifr.ifr_name, sec, usec, &cf);
-		} else {
-			print_frame(fo, ifr.ifr_name, sec, usec, &cf);
+		print_frame(fd, ifr.ifr_name, sec, usec, &cf);
+
+		add_raw_can_frame(&raw_can, &cf, timestamp);
+
+		if (avro_write_data(writer, raw_can_schema, raw_can)) {
+			fprintf(stderr, "unable to write raw_can datum to memory\n");
+			exit(EXIT_FAILURE);
+		}
+/*
+		int64_t msg_size = avro_size_data(writer, raw_can_schema, raw_can);
+		fprintf(stdout, "msg size is %ld\nwriter_tell is %ld\n", msg_size,
+						avro_writer_tell(writer));
+*/
+		if (rd_kafka_produce(rkt, partition, RD_KAFKA_MSG_F_COPY,
+				buf, avro_writer_tell(writer), NULL, 0, NULL) == -1) {
+			fprintf(stderr, "%% Failed to produce to topic %s "
+							"partition %i: %s\n",
+							rd_kafka_topic_name(rkt), partition,
+							rd_kafka_err2str(rd_kafka_last_error()));
+			rd_kafka_poll(rk, 0);
 		}
 
-		// NOTE: Error flag detection is in avro encoding
-		add_raw_can_frame(fd, writer, timestamp, &cf);
+		rd_kafka_poll(rk, 0);
+
+		avro_writer_reset(writer);
 	}
 
-  avro_schema_decref(raw_can_schema);
+	avro_datum_decref(raw_can);
+	avro_schema_decref(raw_can_schema);
 	avro_writer_free(writer);
+	rd_kafka_topic_destroy(rkt);
+	rd_kafka_destroy(rk);
+
+	fclose(fd);
 
 	return EXIT_SUCCESS;
 }
-
