@@ -35,6 +35,7 @@ void timer_handler(int signum) {
 	rd_kafka_conf_set(conf, "batch.num.messages", "20000", errstr, sizeof(errstr));
 	rd_kafka_conf_set(conf, "queue.buffering.max.messages", "1000000", errstr, sizeof(errstr));
 	rd_kafka_conf_set(conf, "queue.buffering.max.ms", "1", errstr, sizeof(errstr));
+	rd_kafka_conf_set(conf, "log.connection.close", "false", errstr, sizeof(errstr));
 
 	topic_conf = rd_kafka_topic_conf_new();
 
@@ -68,6 +69,9 @@ void timer_handler(int signum) {
 	rd_kafka_poll(rk, 0);
 
 	frame_cnt = 0;
+
+	rd_kafka_topic_destroy(rkt);
+	rd_kafka_destroy(rk);
 }
 
 int main(int argc, char *argv[]) {
