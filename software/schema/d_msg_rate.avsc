@@ -1,0 +1,14 @@
+{
+	"type": "record",
+	"name": "dmsgrate",
+	"fields": [
+		{
+			"name": "timestamp",
+			"type": "double"
+		},
+		{
+			"name": "msgrate",
+			"type": "int"
+		}
+	]
+}
