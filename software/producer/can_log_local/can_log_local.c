@@ -251,12 +251,12 @@ int main(int argc, char *argv[]) {
 	/* Get the id */
 	fp = fopen(arguments.id_file, "r");
 	if (fp) {
-		fseek (fp, 0, SEEK_END);
+		fseek(fp, 0, SEEK_END);
 		length = ftell (fp);
-		fseek (fp, 0, SEEK_SET);
-		uuid = malloc(length);
+		fseek(fp, 0, SEEK_SET);
+		uuid = malloc(length - 1);
 		if (uuid) {
-			fread(uuid, 1, length, fp);
+			fread(uuid, 1, length - 1, fp);
 		}
 		fclose(fp);
 	} else {

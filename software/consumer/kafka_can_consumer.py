@@ -19,7 +19,7 @@ MASK_3_BIT = ((1 << 3) - 1)
 MASK_8_BIT = ((1 << 8) - 1)
 
 # avro schema path
-schema_path = "../kafka_can_log_raw/raw_can.avsc"
+schema_path = "../schema/raw_can.avsc"
 
 if __name__ == "__main__":
     # setup argparse
