@@ -1,0 +1,18 @@
+# /etc/ppp/peers
+connect '/usr/sbin/chat -v -f /etc/ppp/chat/telit-4g.chat'
+
+/dev/ttyUSB2
+
+115200
+
+noipdefault
+
+usepeerdns
+
+defaultroute
+
+persist
+noauth
+
+debug
+nodetach

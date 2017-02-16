@@ -1,0 +1,21 @@
+# /etc/ppp/chat
+TIMEOUT 5
+ECHO ON
+ABORT '\nBUSY\r'
+ABORT '\nERROR\r'
+ABORT '\nNO ANSWER\r'
+ABORT '\nNO CARRIER\r'
+ABORT '\nNO DIALTONE\r'
+ABORT '\nRINGING\r\n\r\nRINGING\r'
+'' 'ATZ'
+'' \rAT
+TIMEOUT 30
+OK 'AT+CSQ'
+OK 'AT#SIMDET=1'
+OK 'AT+CGDCONT=1,"IP","Broadband"'
+OK 'AT+CGDCONT?'
+\r \d\c
+'OK' 'ATD*99#'
+\r \d\c
+\r \d\c
+'CONNECT' ''
