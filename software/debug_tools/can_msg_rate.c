@@ -21,14 +21,33 @@ static int frame_cnt = 0;
 static char *key = 0;
 static char *brokers = "localhost:9092";
 
+const char D_MSG_RATE_SCHEMA[] =
+"{\"type\":\"record\",\
+  \"name\":\"dmsgrate\",\
+  \"fields\":[\
+	{\"name\": \"timestamp\", \"type\": \"double\"},\
+	{\"name\": \"msgrate\", \"type\": \"int\"}]}";
+
 /* Timer handler */
 void timer_handler(int signum) {
+	/* Kafka static variables */
 	static rd_kafka_t *rk = NULL;
 	static rd_kafka_topic_t *rkt = NULL;
 	static rd_kafka_conf_t *conf = NULL;
 	static rd_kafka_topic_conf_t *topic_conf = NULL;
 	static char errstr[512];
 
+	/* Avro static variables */
+	static avro_writer_t writer = NULL;
+	static avro_schema_t d_msg_rate_schema = NULL;
+	static avro_datum_t d_msg_rate = NULL;
+	static char buf[20];
+
+	/* timeval struct */
+	struct timeval tp;
+	double timestamp;
+
+	/* Broker conf */
 	if (conf == NULL) {
 		conf = rd_kafka_conf_new();
 		/* Kafka conf */
@@ -42,15 +61,15 @@ void timer_handler(int signum) {
 				sizeof(errstr));
 	}
 
+	/* Kafka topic conf */
 	if (topic_conf == NULL) {
 		topic_conf = rd_kafka_topic_conf_new();
-		/* Kafka topic conf */
 		rd_kafka_topic_conf_set(topic_conf, "request.required.acks", "0", errstr,
 				sizeof(errstr));
 	}
 
+	/* Create Kafka producer */
 	if (rk == NULL) {
-		/* Create Kafka producer */
 		if (!(rk = rd_kafka_new(RD_KAFKA_PRODUCER, conf, errstr, sizeof(errstr)))) {
 			fprintf(stderr, "%% Failed to create new producer: %s\n", errstr);
 		}
@@ -66,8 +85,43 @@ void timer_handler(int signum) {
 		rkt = rd_kafka_topic_new(rk, "dmsgrate", topic_conf);
 	}
 
+	/* Initialize the schema structure from JSON */
+	if (d_msg_rate_schema == NULL) {
+		if (avro_schema_from_json_literal(D_MSG_RATE_SCHEMA, &d_msg_rate_schema)) {
+			fprintf(stderr, "Unable to parse d_msg_rate schema\n");
+			exit(EXIT_FAILURE);
+		}
+	}
+
+	/* Create avro writer */
+	if (writer == NULL) {
+		writer = avro_writer_memory(buf, sizeof(buf));
+	}
+
+	/* Create avro record based on the schema */
+	if (d_msg_rate == NULL) { 
+		d_msg_rate = avro_record(d_msg_rate_schema);
+	}
+
+	gettimeofday(&tp, NULL);
+	timestamp = tp.tv_sec + tp.tv_usec / 1000000.0;
+
+	avro_datum_t ts_datum = avro_double(timestamp);
+	avro_datum_t mr_datum = avro_int32(frame_cnt);
+
+	if (avro_record_set(d_msg_rate, "timestamp", ts_datum)
+		|| avro_record_set(d_msg_rate, "msgrate", mr_datum)) {
+		fprintf(stderr, "Unable to set record to d_msg_rate\n");
+		exit(EXIT_FAILURE);
+	}
+
+	if (avro_write_data(writer, d_msg_rate_schema, d_msg_rate)) {
+		fprintf(stderr, "unable to write d_msg_rate datum to memory\n");
+		exit(EXIT_FAILURE);
+	}
+
 	if (rd_kafka_produce(rkt, RD_KAFKA_PARTITION_UA, RD_KAFKA_MSG_F_COPY,
-			&frame_cnt, sizeof(frame_cnt), key, strlen(key) - 1, NULL) == -1) {
+			buf, avro_writer_tell(writer), key, strlen(key) - 1, NULL) == -1) {
 		fprintf(stderr, "%% Failed to produce to topic %s "
 						"partition %i: %s\n",
 						rd_kafka_topic_name(rkt), RD_KAFKA_PARTITION_UA,
@@ -77,7 +131,15 @@ void timer_handler(int signum) {
 
 	rd_kafka_poll(rk, 0);
 
+	/* Clear the count */
 	frame_cnt = 0;
+	
+	/* Decrement all our references to prevent memory from leaking */
+	avro_datum_decref(ts_datum);
+	avro_datum_decref(mr_datum);
+
+	/* Reset the writer */
+	avro_writer_reset(writer);
 }
 
 int main(int argc, char *argv[]) {
