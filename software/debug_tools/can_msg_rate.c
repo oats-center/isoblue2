@@ -29,22 +29,31 @@ void timer_handler(int signum) {
 	static rd_kafka_topic_conf_t *topic_conf = NULL;
 	static char errstr[512];
 
-	conf = rd_kafka_conf_new();
+	if (conf == NULL) {
+		conf = rd_kafka_conf_new();
+		/* Kafka conf */
+		rd_kafka_conf_set(conf, "batch.num.messages", "20000", errstr,
+				sizeof(errstr));
+		rd_kafka_conf_set(conf, "queue.buffering.max.messages", "1000000", errstr,
+				sizeof(errstr));
+		rd_kafka_conf_set(conf, "queue.buffering.max.ms", "1", errstr,
+				sizeof(errstr));
+		rd_kafka_conf_set(conf, "log.connection.close", "false", errstr,
+				sizeof(errstr));
+	}
 
-	/* Kafka conf */
-	rd_kafka_conf_set(conf, "batch.num.messages", "20000", errstr, sizeof(errstr));
-	rd_kafka_conf_set(conf, "queue.buffering.max.messages", "1000000", errstr, sizeof(errstr));
-	rd_kafka_conf_set(conf, "queue.buffering.max.ms", "1", errstr, sizeof(errstr));
-	rd_kafka_conf_set(conf, "log.connection.close", "false", errstr, sizeof(errstr));
+	if (topic_conf == NULL) {
+		topic_conf = rd_kafka_topic_conf_new();
+		/* Kafka topic conf */
+		rd_kafka_topic_conf_set(topic_conf, "request.required.acks", "0", errstr,
+				sizeof(errstr));
+	}
 
-	topic_conf = rd_kafka_topic_conf_new();
-
-	/* Kafka topic conf */
-	rd_kafka_topic_conf_set(topic_conf, "request.required.acks", "0", errstr, sizeof(errstr));
-
-	/* Create Kafka producer */
-	if (!(rk = rd_kafka_new(RD_KAFKA_PRODUCER, conf, errstr, sizeof(errstr)))) {
-		fprintf(stderr, "%% Failed to create new producer: %s\n", errstr);
+	if (rk == NULL) {
+		/* Create Kafka producer */
+		if (!(rk = rd_kafka_new(RD_KAFKA_PRODUCER, conf, errstr, sizeof(errstr)))) {
+			fprintf(stderr, "%% Failed to create new producer: %s\n", errstr);
+		}
 	}
 	
 	if (rd_kafka_brokers_add(rk, brokers) == 0) {
@@ -52,10 +61,10 @@ void timer_handler(int signum) {
 		exit(EXIT_FAILURE);
 	}
 
-	/* Create new Kafka topic */
-	rkt = rd_kafka_topic_new(rk, "dmsgrate", topic_conf);
-
-	topic_conf = NULL;
+	if (rkt == NULL) {
+		/* Create new Kafka topic */
+		rkt = rd_kafka_topic_new(rk, "dmsgrate", topic_conf);
+	}
 
 	if (rd_kafka_produce(rkt, RD_KAFKA_PARTITION_UA, RD_KAFKA_MSG_F_COPY,
 			&frame_cnt, sizeof(frame_cnt), key, strlen(key) - 1, NULL) == -1) {
@@ -69,9 +78,6 @@ void timer_handler(int signum) {
 	rd_kafka_poll(rk, 0);
 
 	frame_cnt = 0;
-
-	rd_kafka_topic_destroy(rkt);
-	rd_kafka_destroy(rk);
 }
 
 int main(int argc, char *argv[]) {
