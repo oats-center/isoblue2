@@ -4,7 +4,7 @@
  * Author: Yang Wang <wang701@purdue.edu>
  * 				 Alex Layton <awlayton@purdue.edu>
  *
- * Copyright (C) 2016 Purdue University
+ * Copyright (C) 2017 Purdue University
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to
@@ -73,7 +73,7 @@ static struct argp_option options[] = {
 	{NULL, 0, NULL, 0, "About", -1},
 	{NULL, 0, NULL, 0, "Configuration", 0},
 	{"iface", 'i', "<iface>", 0, "CAN interface name", 0},
-	{"file", 'f', "<id-file>", 0, "File to the ISOBlue ID", 0},
+	{"file", 'd', "<id-file>", 0, "File to the ISOBlue ID", 0},
 	{"topic", 't', "<topic>", 0, "Kafka topic name", 0},
 	{ 0 }
 };
@@ -94,7 +94,7 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state)
 			arguments->iface = arg;
 			break;
 
-		case 'f':
+		case 'd':
 			arguments->id_file = arg;
 			break;
 
@@ -260,7 +260,7 @@ int main(int argc, char *argv[]) {
 		}
 		fclose(fp);
 	} else {
-		perror("ID file");
+		perror("ISOBlue ID file");
 	}
 
 	/* Kafka conf */
@@ -310,9 +310,9 @@ int main(int argc, char *argv[]) {
 	ioctl(s, SIOCGIFINDEX, &ifr);
 
 	/* Create the key */
-	char *tmp = (char *) malloc(1 + strlen("-") + strlen(ifr.ifr_name));
+	char *tmp = (char *) malloc(1 + strlen(":") + strlen(ifr.ifr_name));
 	strcpy(tmp, ifr.ifr_name);
-	strcat(tmp, "-");
+	strcat(tmp, ":");
 	char *key = (char *) malloc(1 + strlen(tmp) + strlen(uuid)); 
 	strcpy(key, tmp);
 	strcat(key, uuid);

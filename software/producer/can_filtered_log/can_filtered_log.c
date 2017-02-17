@@ -2,8 +2,9 @@
  * Filtered CAN frame Kafka producer
  *
  * Author: Yang Wang <wang701@purdue.edu>
+ * 				 Alex Layton <awlayton@purdue.edu>
  *
- * Copyright (C) 2016 Purdue University
+ * Copyright (C) 2017 Purdue University
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to
@@ -467,15 +468,15 @@ int main(int argc, char *argv[]) {
 			printf("Matched PGN: %s\n", matched_pgn);
 #endif
 			/* Create the key */
-			char *tmp = (char *) malloc(1 + strlen("-") + strlen(ifr.ifr_name));
+			char *tmp = (char *) malloc(1 + strlen(":") + strlen(ifr.ifr_name));
 			strcpy(tmp, ifr.ifr_name);
-			strcat(tmp, "-");
+			strcat(tmp, ":");
 			char *ttmp = (char *) malloc(1 + strlen(tmp) + strlen(matched_pgn));
 			strcpy(ttmp, tmp);
 			strcat(ttmp, matched_pgn);
-			char *tttmp = (char *) malloc(1 + strlen("-") + strlen(ttmp));
+			char *tttmp = (char *) malloc(1 + strlen(":") + strlen(ttmp));
 			strcpy(tttmp, ttmp);
-			strcat(tttmp, "-");
+			strcat(tttmp, ":");
 			char *key = (char *) malloc(1 + strlen(tttmp) + strlen(uuid) + strlen(matched_pgn)); 
 			strcpy(key, tttmp);
 			strcat(key, uuid);

@@ -31,9 +31,9 @@ if __name__ == "__main__":
         msg_rate_datum = reader.read(decoder)
 
         key = message.key
-        key_splited = key.split('-')
+        key_splited = key.split(':')
         bus = key_splited[0]
-        isoblue_id = '-'.join(key_splited[1:])
+        isoblue_id = key_splited[1:]
         frame_rate = msg_rate_datum['msgrate']
         timestamp = msg_rate_datum['timestamp']
 
