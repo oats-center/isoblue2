@@ -1,0 +1,6 @@
+# CAN interface on tractor bus
+KERNEL=="tra", RUN+="/bin/sh -c 'echo enabled > /sys/devices/soc0/soc.0/2000000.aips-bus/2090000.can/power/wakeup'"
+
+# CAN interface on implement bus
+KERNEL=="imp", RUN+="/bin/sh -c 'echo enabled > /sys/devices/soc0/soc.0/2000000.aips-bus/2094000.can/power/wakeup'"
+

@@ -1,0 +1,3 @@
+# bring up 4G network work
+
+SUBSYSTEM=="net", KERNEL=="wwan0", RUN+="/bin/sh -c 'qmicli -p -d /dev/cdc-wdm0 --wds-start-network=Broadband --client-no-release-cid'", RUN+="/bin/sh -c 'dhclient wwan0'"
