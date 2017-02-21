@@ -20,6 +20,7 @@ MASK_8_BIT = ((1 << 8) - 1)
 
 # avro schema path
 schema_path = "../schema/raw_can.avsc"
+cnt = 0
 
 if __name__ == "__main__":
     # setup argparse
@@ -83,37 +84,5 @@ if __name__ == "__main__":
 
     # iterate through received messages
     for msg in consumer:
-        # setup decoder
-        bytes_reader = io.BytesIO(msg.value)
-        decoder = avro.io.BinaryDecoder(bytes_reader)
-        reader = avro.io.DatumReader(schema)
-        user1 = reader.read(decoder)
-        
-        # disregard any null data
-        if user1["data"] is None:
-            continue
-
-        # disregard any rubbish message
-        if len(user1["data"]) < 8:
-            continue	
-
-        # unpack the binary data and convert it to a list
-        data = struct.unpack("BBBBBBBB", user1["data"])
-        data_list = list(data)
-
-        # convert arbitration_id to hex, pad 0 to make it length 8
-        arbitration_id = (hex(user1["arbitration_id"])[2:]).rjust(8, "0")
-
-        # iterate through data_list and pad 0 if the length is not 2
-        for i in range(len(data_list)):
-            # convert each number to hex string
-            data_list[i] = hex(data_list[i])[2:]
-            # pad zero if the hex number length is 1
-            if len(data_list[i]) == 1:
-               data_list[i] = data_list[i].rjust(2, "0")
-
-        # join hex string into one, make the message hex string
-        data_payload = ''.join(data_list)
-        message = arbitration_id + data_payload
-        parsed_message = parse(message, user1["timestamp"])
-        print parsed_message
+        cnt = cnt + 1
+        sys.stdout.write("\r%d" % (cnt))

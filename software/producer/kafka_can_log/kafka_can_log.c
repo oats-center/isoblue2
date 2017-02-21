@@ -1,8 +1,7 @@
 /*
- * Filtered CAN frame Kafka producer
+ * Raw CAN Frame Kafka Producer
  *
  * Author: Yang Wang <wang701@purdue.edu>
- * 				 Alex Layton <awlayton@purdue.edu>
  *
  * Copyright (C) 2017 Purdue University
  *
@@ -25,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-#define CANFILTER_VER	"can_filtered_log - Filtered CAN Frame Logger"
+#define KAFKA_CAN_LOG_VER	"kafka_can_log - Raw CAN Frame Kafka Producer"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -33,6 +32,7 @@
 #include <string.h>
 #include <signal.h>
 #include <errno.h>
+#include <stdbool.h>
 
 #include <argp.h>
 
@@ -64,9 +64,9 @@ const char RAW_CAN_SCHEMA[] =
 
 /* argp goodies */
 #ifdef BUILD_NUM
-const char *argp_program_version = CANFILTER_VER "\n" BUILD_NUM;
+const char *argp_program_version = KAFKA_CAN_LOG_VER "\n" BUILD_NUM;
 #else
-const char *argp_program_version = CANFILTER_VER;
+const char *argp_program_version = KAFKA_CAN_LOG_VER;
 #endif
 const char *argp_program_bug_address = "<bugs@isoblue.org>";
 static char args_doc[] = "IFACE IDFILE TOPIC PGNFILE";
@@ -77,15 +77,16 @@ static struct argp_option options[] = {
 	{"iface", 'i', "<iface>", 0, "CAN interface name", 0},
 	{"id", 'd', "<id-file>", 0, "ISOBlue ID file", 0},
 	{"pgns", 'p', "<pgns-file>", 0, "PGN list file", 0},
-	{"topic", 't', "<topic>", 0, "Kafka topic name", 0},
+	{"topic", 't', "<topic-name>", 0, "Local Kafka topic name", 0},
 	{ 0 }
 };
 
 struct arguments {
-	char *id_file;
-	char *topic_name;
 	char *iface;
+	char *id_file;
 	char *pgns_file;
+	char *topic_name;
+	bool filter_enable;
 };
 
 static error_t parse_opt(int key, char *arg, struct argp_state *state)
@@ -102,17 +103,18 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state)
 			arguments->id_file = arg;
 			break;
 
+		case 'p':
+			arguments->pgns_file = arg;
+			arguments->filter_enable = ((strcmp(arg, "") == 0)? false:true);
+			break;
+
 		case 't':
 			arguments->topic_name = arg;
 			break;
 
-		case 'p':
-			arguments->pgns_file = arg;
-			break;
-
 		case ARGP_KEY_END:
 			if (arguments->iface == NULL || arguments->id_file == NULL
-					|| arguments->topic_name == NULL || arguments->pgns_file == NULL) {
+					|| arguments->topic_name == NULL) {
 				argp_usage(state);
 				ret = EINVAL;
 			}
@@ -239,6 +241,7 @@ int main(int argc, char *argv[]) {
 		NULL,
 		NULL,
 		NULL,
+		false,	
 	};
 
 	if (argp_parse(&argp, argc, argv, 0, 0, &arguments)) {
@@ -253,6 +256,10 @@ int main(int argc, char *argv[]) {
 
 	/* fg for pgn list file */
 	FILE *fg;
+	
+	/* Buffers for building up the message key */
+	char key[100];
+	char pgn_str[10];
 
 	/* CAN stuff variables */
 	int s;
@@ -296,43 +303,104 @@ int main(int argc, char *argv[]) {
 	printf("ISOBlue ID: %s\n", uuid);
 #endif
 
-	/* Count the number of PGNs */
-	fg = fopen(arguments.pgns_file, "r");
-	int num_pgns = 0;
-	int ch = 0;
-	while(!feof(fg)) {
-		ch = fgetc(fg);
-		if (ch == '\n') {
-			num_pgns++;
+	/* Create CAN socket */
+	if ((s = socket(PF_CAN, SOCK_RAW, CAN_RAW)) < 0) {
+		return EXIT_FAILURE;
+	}
+
+	/* Get the interface ID from arguments */
+	strcpy(ifr.ifr_name, arguments.iface);
+	ioctl(s, SIOCGIFINDEX, &ifr);
+
+	/* Listen on the CAN interface */
+	addr.can_family  = AF_CAN;
+	addr.can_ifindex = ifr.ifr_ifindex;
+
+	if (bind(s, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
+		return EXIT_FAILURE;
+	}
+
+	/* Receive all error frames */
+	err_mask = CAN_ERR_MASK;
+	setsockopt(s, SOL_CAN_RAW, CAN_RAW_ERR_FILTER, &err_mask, sizeof(err_mask));
+
+	/* Timestamp frames */
+	const int val = 1;
+	setsockopt(s, SOL_SOCKET, SO_TIMESTAMP, &val, sizeof(val));
+
+	if (arguments.filter_enable) {
+		/* Count the number of PGNs */
+		fg = fopen(arguments.pgns_file, "r");
+		int num_pgns = 0;
+		int ch = 0;
+		while(!feof(fg)) {
+			ch = fgetc(fg);
+			if (ch == '\n') {
+				num_pgns++;
+			}
+		}
+
+		/* Reset the file pointer to the beginning */
+		fseek(fg, 0, SEEK_SET);
+
+		/* Put PGNs into an array */
+		char pgns_str[num_pgns][20];
+		int i = 0;
+		while (fgets(pgns_str[i], 20, fg)) {
+			pgns_str[i][strlen(pgns_str[i]) - 1] = '\0';
+			i++;
+		}
+
+		pgn_t pgns[num_pgns];
+#if DEBUG
+		printf("PGN list is:\n");
+#endif
+		for (i = 0; i < num_pgns; i++) {
+			pgns[i] = atoi(pgns_str[i]);
+			if (pgns[i] < 0 || pgns[i] > 262143) { // max PGN is 0x3ffff
+				fprintf(stderr, "PGN %u in PGN list file is not in the valid range.\n",
+						pgns[i]);
+				return EXIT_FAILURE;
+			}
+#if DEBUG
+			printf("%u\n", pgns[i]);
+#endif
+		}
+
+		/* Apply the PGN filters */
+		if (num_pgns > 0) {
+			struct can_filter pgnf[num_pgns];
+			canid_t id, mask;
+			for (i = 0; i < num_pgns; i++) {
+				if (pgns[i] >= 61440) { // PDU format check
+					id = (pgns[i] & ISOBUS_PGN1_MASK) << ISOBUS_PGN_POS;
+					mask = ISOBUS_PGN1_MASK << ISOBUS_PGN_POS;
+				} else {
+					id = (pgns[i] & ISOBUS_PGN_MASK) << ISOBUS_PGN_POS;
+					mask = ISOBUS_PGN_MASK << ISOBUS_PGN_POS;
+				}
+				pgnf[i].can_id = id;
+				pgnf[i].can_mask = mask;
+			}
+			setsockopt(s, SOL_CAN_RAW, CAN_RAW_FILTER, &pgnf, sizeof(pgnf));
 		}
 	}
+	
+	/* Buffer received CAN frames */
+	struct can_frame cf;
+	struct msghdr msg = { 0 };
+	struct iovec iov = { 0 };
+	char ctrlmsg[CMSG_SPACE(sizeof(struct timeval))];
 
-	/* Reset the file pointer to the beginning */
-	fseek(fg, 0, SEEK_SET);
-
-	/* Put PGNs into an array */
-	char pgns_str[num_pgns][20];
-	int i = 0;
-	while (fgets(pgns_str[i], 20, fg)) {
-		pgns_str[i][strlen(pgns_str[i]) - 1] = '\0';
-		i++;
-	}
-
-	pgn_t pgns[num_pgns];
-#if DEBUG
-	printf("PGN list is:\n");
-#endif
-	for (i = 0; i < num_pgns; i++) {
-		pgns[i] = atoi(pgns_str[i]);
-		if (pgns[i] < 0 || pgns[i] > 262143) { // max PGN is 0x3ffff
-			fprintf(stderr, "PGN %u in PGN list file is not in the valid range.\n",
-					pgns[i]);
-			return EXIT_FAILURE;
-		}
-#if DEBUG
-		printf("%u\n", pgns[i]);
-#endif
-	}
+	/* Construct msghdr to use to recevie messages from socket */
+	msg.msg_name = &addr;
+	msg.msg_namelen = sizeof(addr);
+	msg.msg_control = ctrlmsg;
+	msg.msg_controllen = sizeof(ctrlmsg);
+	msg.msg_iov = &iov;
+	msg.msg_iovlen = 1;
+	iov.iov_base = &cf;
+	iov.iov_len = sizeof(cf);
 
 	/* Kafka conf */
 	conf = rd_kafka_conf_new();
@@ -371,63 +439,6 @@ int main(int argc, char *argv[]) {
 	/* Create avro record based on the schema */
 	raw_can = avro_record(raw_can_schema);
 
-	/* Create CAN socket */
-	if ((s = socket(PF_CAN, SOCK_RAW, CAN_RAW)) < 0) {
-		return EXIT_FAILURE;
-	}
-
-	/* Get the interface ID from arguments */
-	strcpy(ifr.ifr_name, arguments.iface);
-	ioctl(s, SIOCGIFINDEX, &ifr);
-
-
-	/* Listen on the CAN interface */
-	addr.can_family  = AF_CAN;
-	addr.can_ifindex = ifr.ifr_ifindex;
-
-	if (bind(s, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
-		return EXIT_FAILURE;
-	}
-
-	/* Receive all error frames */
-	err_mask = CAN_ERR_MASK;
-	setsockopt(s, SOL_CAN_RAW, CAN_RAW_ERR_FILTER, &err_mask, sizeof(err_mask));
-
-	/* Timestamp frames */
-	const int val = 1;
-	setsockopt(s, SOL_SOCKET, SO_TIMESTAMP, &val, sizeof(val));
-
-	struct can_filter f[num_pgns];
-	canid_t id, mask;
-	for (i = 0; i < num_pgns; i++) {
-		if (pgns[i] >= 61440) {
-			id = (pgns[i] & ISOBUS_PGN1_MASK) << ISOBUS_PGN_POS;
-			mask = ISOBUS_PGN1_MASK << ISOBUS_PGN_POS;
-		} else {
-			id = (pgns[i] & ISOBUS_PGN_MASK) << ISOBUS_PGN_POS;
-			mask = ISOBUS_PGN_MASK << ISOBUS_PGN_POS;
-		}
-		f[i].can_id = id;
-		f[i].can_mask = mask;
-	}
-	setsockopt(s, SOL_CAN_RAW, CAN_RAW_FILTER, &f, sizeof(f));
-
-	/* Buffer received CAN frames */
-	struct can_frame cf;
-	struct msghdr msg = { 0 };
-	struct iovec iov = { 0 };
-	char ctrlmsg[CMSG_SPACE(sizeof(struct timeval))];
-
-	/* Construct msghdr to use to recevie messages from socket */
-	msg.msg_name = &addr;
-	msg.msg_namelen = sizeof(addr);
-	msg.msg_control = ctrlmsg;
-	msg.msg_controllen = sizeof(ctrlmsg);
-	msg.msg_iov = &iov;
-	msg.msg_iovlen = 1;
-	iov.iov_base = &cf;
-	iov.iov_len = sizeof(cf);
-
 	while (1) {
 		double timestamp;
 #if DEBUG
@@ -465,76 +476,45 @@ int main(int argc, char *argv[]) {
 #endif
 
 		pgn_t pgn = get_pgn(&cf);
+		sprintf(pgn_str, "%u", pgn);
 
-		int j;
-		int match = 0;
-		char matched_pgn[10];
+		/* Create the key */
+		strcpy(key, ifr.ifr_name);
+		strcat(key, ":");
+		strcat(key, pgn_str);
+		strcat(key, ":");
+		strcat(key, uuid);
 
-		for (j = 0; j < num_pgns; j++) {
-			if (pgn == pgns[j]) {
-				match = 1;
-				sprintf(matched_pgn, "%u", pgns[j]);
-			}
+#if DEBUG
+		printf("The message key: %s\n", key);
+		print_frame(fd, ifr.ifr_name, sec, usec, &cf);
+#endif
+
+		/* Add the raw_can_frame datum */
+		add_raw_can_frame(&raw_can, &cf, timestamp);
+
+		/* Write to avro writer */
+		if (avro_write_data(writer, raw_can_schema, raw_can)) {
+			fprintf(stderr, "unable to write raw_can datum to memory\n");
+			exit(EXIT_FAILURE);
 		}
 
-		/* We got a PGN match */
-		if (match) {
-#if DEBUG
-			printf("Matched PGN: %s\n", matched_pgn);
-#endif
-			/* Create the key */
-			char *tmp = (char *) malloc(1 + strlen(":") + strlen(ifr.ifr_name));
-			strcpy(tmp, ifr.ifr_name);
-			strcat(tmp, ":");
-			char *ttmp = (char *) malloc(1 + strlen(tmp) + strlen(matched_pgn));
-			strcpy(ttmp, tmp);
-			strcat(ttmp, matched_pgn);
-			char *tttmp = (char *) malloc(1 + strlen(":") + strlen(ttmp));
-			strcpy(tttmp, ttmp);
-			strcat(tttmp, ":");
-			char *key = (char *) malloc(1 + strlen(tttmp) + strlen(uuid) + strlen(matched_pgn)); 
-			strcpy(key, tttmp);
-			strcat(key, uuid);
-
-#if DEBUG
-			printf("The message key: %s\n", key);
-			print_frame(fd, ifr.ifr_name, sec, usec, &cf);
-#endif
-	
-			/* Add the raw_can_frame datum */
-			add_raw_can_frame(&raw_can, &cf, timestamp);
-
-			/* Write to avro writer */
-			if (avro_write_data(writer, raw_can_schema, raw_can)) {
-				fprintf(stderr, "unable to write raw_can datum to memory\n");
-				exit(EXIT_FAILURE);
-			}
-	/*
-			int64_t msg_size = avro_size_data(writer, raw_can_schema, raw_can);
-			fprintf(stdout, "msg size is %ld\nwriter_tell is %ld\n", msg_size,
-							avro_writer_tell(writer));
-	*/
-
-			/* Produce the CAN frame to Kafka */
-			if (rd_kafka_produce(rkt, partition, RD_KAFKA_MSG_F_COPY,
-					buf, avro_writer_tell(writer), key, strlen(key) - 1, NULL) == -1) {
-				fprintf(stderr, "%% Failed to produce to topic %s "
-								"partition %i: %s\n",
-								rd_kafka_topic_name(rkt), partition,
-								rd_kafka_err2str(rd_kafka_last_error()));
-				rd_kafka_poll(rk, 0);
-			}
-
+		/* Produce the CAN frame to Kafka */
+		if (rd_kafka_produce(rkt, partition, RD_KAFKA_MSG_F_COPY,
+				buf, avro_writer_tell(writer), key, strlen(key) - 1, NULL) == -1) {
+			fprintf(stderr, "%% Failed to produce to topic %s "
+							"partition %i: %s\n",
+							rd_kafka_topic_name(rkt), partition,
+							rd_kafka_err2str(rd_kafka_last_error()));
 			rd_kafka_poll(rk, 0);
-
-			avro_writer_reset(writer);
-
-			free(tmp);
-			free(ttmp);
-			free(key);
 		}
 
-		match = 0;
+		rd_kafka_poll(rk, 0);
+
+		avro_writer_reset(writer);
+
+		/* Reset the key buffer */
+		memset(&key[0], 0, sizeof(key));
 	}
 
 	avro_datum_decref(raw_can);
