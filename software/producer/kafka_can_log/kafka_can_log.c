@@ -172,7 +172,7 @@ void print_frame(FILE *fd, char interface[], long sec, long usec,
 /* Add received CAN frame's data to a record */
 void add_raw_can_frame(avro_schema_t *raw_can, struct can_frame *cf,
 	double timestamp) {
-	uint8_t is_extended_frame = cf->can_id & CAN_EFF_FLAG;
+	uint8_t is_extended_frame = ((cf->can_id & CAN_EFF_FLAG) > 0);
 
 	avro_datum_t ts_datum = avro_double(timestamp);
 	avro_datum_t rf_datum = avro_boolean((cf->can_id & CAN_RTR_FLAG) > 0);
@@ -251,7 +251,7 @@ int main(int argc, char *argv[]) {
 
 	/* fp for opening id file */
 	FILE *fp;
-	char *uuid = 0;
+	char *id = 0;
 	long length;
 
 	/* fg for pgn list file */
@@ -290,9 +290,12 @@ int main(int argc, char *argv[]) {
 		fseek(fp, 0, SEEK_END);
 		length = ftell(fp);
 		fseek(fp, 0, SEEK_SET);
-		uuid = malloc(length - 1);
-		if (uuid) {
-			fread(uuid, 1, length - 1, fp);
+		id = malloc(length);
+		if (id) {
+			fread(id, 1, length, fp);
+			if (id[length - 1] == '\n') {
+				id[--length] = '\0';
+			}
 		}
 		fclose(fp);
 	} else {
@@ -300,11 +303,12 @@ int main(int argc, char *argv[]) {
 	}
 
 #if DEBUG
-	printf("ISOBlue ID: %s\n", uuid);
+	printf("ISOBlue ID: %s\n", id);
 #endif
 
 	/* Create CAN socket */
 	if ((s = socket(PF_CAN, SOCK_RAW, CAN_RAW)) < 0) {
+		perror("socket");
 		return EXIT_FAILURE;
 	}
 
@@ -370,16 +374,16 @@ int main(int argc, char *argv[]) {
 		/* Apply the PGN filters */
 		if (num_pgns > 0) {
 			struct can_filter pgnf[num_pgns];
-			canid_t id, mask;
+			canid_t can_id, mask;
 			for (i = 0; i < num_pgns; i++) {
-				if (pgns[i] >= 61440) { // PDU format check
-					id = (pgns[i] & ISOBUS_PGN1_MASK) << ISOBUS_PGN_POS;
+				if (pgns[i] < 61440) { // PDU format check
+					can_id = (pgns[i] & ISOBUS_PGN1_MASK) << ISOBUS_PGN_POS;
 					mask = ISOBUS_PGN1_MASK << ISOBUS_PGN_POS;
 				} else {
-					id = (pgns[i] & ISOBUS_PGN_MASK) << ISOBUS_PGN_POS;
+					can_id = (pgns[i] & ISOBUS_PGN_MASK) << ISOBUS_PGN_POS;
 					mask = ISOBUS_PGN_MASK << ISOBUS_PGN_POS;
 				}
-				pgnf[i].can_id = id;
+				pgnf[i].can_id = can_id;
 				pgnf[i].can_mask = mask;
 			}
 			setsockopt(s, SOL_CAN_RAW, CAN_RAW_FILTER, &pgnf, sizeof(pgnf));
@@ -483,7 +487,7 @@ int main(int argc, char *argv[]) {
 		strcat(key, ":");
 		strcat(key, pgn_str);
 		strcat(key, ":");
-		strcat(key, uuid);
+		strcat(key, id);
 
 #if DEBUG
 		printf("The message key: %s\n", key);
