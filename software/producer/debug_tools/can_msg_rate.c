@@ -44,7 +44,7 @@
 #include <librdkafka/rdkafka.h>
 
 static int frame_cnt = 0;
-static char *key = 0;
+static char key[100];
 static char *brokers = "localhost:9092";
 
 const char D_MSG_RATE_SCHEMA[] =
@@ -175,7 +175,7 @@ int main(int argc, char *argv[]) {
 	}
 	/* fp for opening uuid file */
 	FILE *fp;
-	char *uuid = 0;
+	char *id = 0;
 	long length;
 
 	/* Timer stuff variables */
@@ -194,9 +194,12 @@ int main(int argc, char *argv[]) {
 		fseek(fp, 0, SEEK_END);
 		length = ftell(fp);
 		fseek(fp, 0, SEEK_SET);
-		uuid = malloc(length - 1);
-		if (uuid) {
-			fread(uuid, 1, length - 1, fp);
+		id = malloc(length);
+		if (id) {
+			fread(id, 1, length, fp);
+			if (id[length - 1] == '\n') {
+				id[--length] = '\0';
+			}
 		}
 		fclose(fp);
 	} else {
@@ -222,6 +225,7 @@ int main(int argc, char *argv[]) {
 
 	/* Create CAN socket */
 	if ((s = socket(PF_CAN, SOCK_RAW, CAN_RAW)) < 0) {
+		perror("socket");
 		return EXIT_FAILURE;
 	}
 
@@ -230,14 +234,9 @@ int main(int argc, char *argv[]) {
 	ioctl(s, SIOCGIFINDEX, &ifr);
 
 	/* Create the key */
-	char *tmp = (char *) malloc(1 + strlen(":") + strlen(ifr.ifr_name));
-	strcpy(tmp, ifr.ifr_name);
-	strcat(tmp, ":");
-	key = (char *) malloc(1 + strlen(tmp) + strlen(uuid)); 
-	strcpy(key, tmp);
-	strcat(key, uuid);
-
-	free(tmp);
+	strcpy(key, ifr.ifr_name);
+	strcat(key, ":");
+	strcat(key, id);
 
 	/* Listen on specified CAN interfaces */
 	addr.can_family  = AF_CAN;
