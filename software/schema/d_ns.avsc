@@ -1,0 +1,14 @@
+{
+	"type": "record",
+	"name": "dns",
+	"fields": [
+		{
+			"name": "timestamp",
+			"type": "double"
+		},
+		{
+			"name": "strength",
+			"type": "int"
+		}
+	]
+}

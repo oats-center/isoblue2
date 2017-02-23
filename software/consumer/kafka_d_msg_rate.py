@@ -11,7 +11,7 @@ import avro.io
 from struct import *
 from kafka import KafkaConsumer
 
-topic = 'dmsgrate'
+topic = 'debug'
 msg_rate_list = []
 
 if __name__ == "__main__":
@@ -24,16 +24,19 @@ if __name__ == "__main__":
     consumer = KafkaConsumer(topic, group_id=None)
 
     for message in consumer:
+        # disregard any message that does not have msgrate key
+        key_splited = message.key.split(':')
+        if key_splited[0] != 'mr':
+            continue
+
         # setup avro decoder
         bytes_reader = io.BytesIO(message.value)
         decoder = avro.io.BinaryDecoder(bytes_reader)
         reader = avro.io.DatumReader(schema)
         msg_rate_datum = reader.read(decoder)
 
-        key = message.key
-        key_splited = key.split(':')
-        bus = key_splited[0]
-        isoblue_id = key_splited[1:]
+        bus = key_splited[1]
+        isoblue_id = key_splited[2:]
         frame_rate = msg_rate_datum['msgrate']
         timestamp = msg_rate_datum['timestamp']
 

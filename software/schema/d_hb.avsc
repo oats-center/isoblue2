@@ -1,0 +1,14 @@
+{
+	"type": "record",
+	"name": "dhb",
+	"fields": [
+		{
+			"name": "timestamp",
+			"type": "double"
+		},
+		{
+			"name": "heartbeat",
+			"type": "boolean"
+		}
+	]
+}

@@ -1,5 +1,5 @@
 /*
- * CAN Frame Message Rate Kafka Producer 
+ * Heartbeat Message Kafka Producer 
  *
  * Author: Yang Wang <wang701@purdue.edu>
  *
@@ -29,30 +29,29 @@
 #include <unistd.h>
 #include <string.h>
 #include <signal.h>
+#include <stdbool.h>
 #include <errno.h>
 
-#include <net/if.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <sys/ioctl.h>
 #include <sys/time.h>
-
-#include <linux/can.h>
-#include <linux/can/raw.h>
 
 #include <avro.h>
 #include <librdkafka/rdkafka.h>
 
-static int frame_cnt = 0;
 static char key[100];
+#if DEBUG
+static char *hb_path = "/home/yang/source/isoblue2/test/heartbeat";
+#else
+static char *hb_path = "/opt/debug/heartbeat";
+#endif
 static char *brokers = "localhost:9092";
+static int hb_missed = 0;
 
-const char D_MSG_RATE_SCHEMA[] =
+const char D_HB_SCHEMA[] =
 "{\"type\":\"record\",\
-  \"name\":\"dmsgrate\",\
+  \"name\":\"dhb\",\
   \"fields\":[\
 	{\"name\": \"timestamp\", \"type\": \"double\"},\
-	{\"name\": \"msgrate\", \"type\": \"int\"}]}";
+	{\"name\": \"heartbeat\", \"type\": \"boolean\"}]}";
 
 /* Timer handler */
 void timer_handler(int signum) {
@@ -65,13 +64,16 @@ void timer_handler(int signum) {
 
 	/* Avro static variables */
 	static avro_writer_t writer = NULL;
-	static avro_schema_t d_msg_rate_schema = NULL;
-	static avro_datum_t d_msg_rate = NULL;
+	static avro_schema_t d_hb_schema = NULL;
+	static avro_datum_t d_hb = NULL;
 	static char buf[20];
 
 	/* timeval struct */
 	struct timeval tp;
 	double timestamp;
+
+	/* Heartbeat */
+	static bool hb;
 
 	/* Broker conf */
 	if (conf == NULL) {
@@ -112,9 +114,9 @@ void timer_handler(int signum) {
 	}
 
 	/* Initialize the schema structure from JSON */
-	if (d_msg_rate_schema == NULL) {
-		if (avro_schema_from_json_literal(D_MSG_RATE_SCHEMA, &d_msg_rate_schema)) {
-			fprintf(stderr, "Unable to parse d_msg_rate schema\n");
+	if (d_hb_schema == NULL) {
+		if (avro_schema_from_json_literal(D_HB_SCHEMA, &d_hb_schema)) {
+			fprintf(stderr, "Unable to parse d_hb schema\n");
 			exit(EXIT_FAILURE);
 		}
 	}
@@ -125,23 +127,45 @@ void timer_handler(int signum) {
 	}
 
 	/* Create avro record based on the schema */
-	if (d_msg_rate == NULL) { 
-		d_msg_rate = avro_record(d_msg_rate_schema);
+	if (d_hb == NULL) { 
+		d_hb = avro_record(d_hb_schema);
 	}
 
+	/* Get UNIX timestamp */
 	gettimeofday(&tp, NULL);
 	timestamp = tp.tv_sec + tp.tv_usec / 1000000.0;
 
-	avro_datum_t ts_datum = avro_double(timestamp);
-	avro_datum_t mr_datum = avro_int32(frame_cnt);
+	/* Check if heartbeat */
+	if (access(hb_path, F_OK) != -1) {
+		hb = true;
+		hb_missed = 0;
+#if DEBUG
+		printf("%f: ISOBlue is alive\n", timestamp);
+#endif
+		fflush(stdout);
+	} else {
+		hb_missed++;
+		if (hb_missed > 5) {
+			printf("%f: FIRE! ISOBlue has been offline for at least %d mins! \
+					Network really sucks!\n", timestamp, hb_missed);
+		}
+		hb = false;
+#if DEBUG
+		printf("ISOBlue is dead at %f\n", timestamp);
+#endif
+		fflush(stdout);
+	}
 
-	if (avro_record_set(d_msg_rate, "timestamp", ts_datum)
-		|| avro_record_set(d_msg_rate, "msgrate", mr_datum)) {
+	avro_datum_t ts_datum = avro_double(timestamp);
+	avro_datum_t hb_datum = avro_boolean(hb);
+
+	if (avro_record_set(d_hb, "timestamp", ts_datum)
+		|| avro_record_set(d_hb, "heartbeat", hb_datum)) {
 		fprintf(stderr, "Unable to set record to d_msg_rate\n");
 		exit(EXIT_FAILURE);
 	}
 
-	if (avro_write_data(writer, d_msg_rate_schema, d_msg_rate)) {
+	if (avro_write_data(writer, d_hb_schema, d_hb)) {
 		fprintf(stderr, "unable to write d_msg_rate datum to memory\n");
 		exit(EXIT_FAILURE);
 	}
@@ -157,22 +181,20 @@ void timer_handler(int signum) {
 
 	rd_kafka_poll(rk, 0);
 
-	/* Clear the count */
-	frame_cnt = 0;
-	
 	/* Decrement all our references to prevent memory from leaking */
 	avro_datum_decref(ts_datum);
-	avro_datum_decref(mr_datum);
+	avro_datum_decref(hb_datum);
 
 	/* Reset the writer */
 	avro_writer_reset(writer);
 }
 
 int main(int argc, char *argv[]) {
-	if (argc != 3) {
-		fprintf(stderr, "Invalid arguments\n");
+	if (argv[1] == NULL) {
+		fprintf(stderr, "You need to supply ISOBlue ID file\n");
 		return EXIT_FAILURE;
 	}
+
 	/* fp for opening uuid file */
 	FILE *fp;
 	char *id = 0;
@@ -181,12 +203,6 @@ int main(int argc, char *argv[]) {
 	/* Timer stuff variables */
 	struct sigaction sa;
 	struct itimerval timer;
-
-	/* CAN stuff variables */
-	int s;
-	struct sockaddr_can addr;
-	struct ifreq ifr;
-	can_err_mask_t err_mask;
 
 	/* Get the id */
 	fp = fopen(argv[1], "r");
@@ -207,81 +223,29 @@ int main(int argc, char *argv[]) {
 		return EXIT_FAILURE;
 	}
 
+	/* Create the key */
+	strcpy(key, "hb");
+	strcat(key, ":");
+	strcat(key, id);
+
 	/* Install timer_handler as the signal handler for SIGALRM. */
 	memset (&sa, 0, sizeof(sa));
 	sa.sa_handler = &timer_handler;
 	sigaction(SIGALRM, &sa, NULL);
 
-	/* Configure the timer to expire after 1 sec... */
-	timer.it_value.tv_sec = 1;
+	/* Configure the timer to expire after 1 min... */
+	timer.it_value.tv_sec = 60;
 	timer.it_value.tv_usec = 0;
-	/* ... and every 1 sec after that. */
-	timer.it_interval.tv_sec = 1;
+	/* ... and every 1 min after that. */
+	timer.it_interval.tv_sec = 60;
 	timer.it_interval.tv_usec = 0;
 
 	/* Start a real timer. It counts down whenever this process is
 	 * executing. */
 	setitimer(ITIMER_REAL, &timer, NULL);
 
-	/* Create CAN socket */
-	if ((s = socket(PF_CAN, SOCK_RAW, CAN_RAW)) < 0) {
-		perror("socket");
-		return EXIT_FAILURE;
-	}
-
-	/* Get the interface ID from arguments */
-	strcpy(ifr.ifr_name, argv[2]);
-	ioctl(s, SIOCGIFINDEX, &ifr);
-
-	/* Create the key */
-	strcpy(key, "mr");
-	strcat(key, ":");
-	strcat(key, ifr.ifr_name);
-	strcat(key, ":");
-	strcat(key, id);
-
-	/* Listen on specified CAN interfaces */
-	addr.can_family  = AF_CAN;
-	addr.can_ifindex = ifr.ifr_ifindex;
-
-	if (bind(s, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
-		return EXIT_FAILURE;
-	}
-
-	/* Receive all error frames */
-	err_mask = CAN_ERR_MASK;
-	setsockopt(s, SOL_CAN_RAW, CAN_RAW_ERR_FILTER, &err_mask, sizeof(err_mask));
-
-	/* Timestamp frames */
-	const int val = 1;
-	setsockopt(s, SOL_SOCKET, SO_TIMESTAMP, &val, sizeof(val));
-
-	/* Buffer received CAN frames */
-	struct can_frame cf;
-	struct msghdr msg = { 0 };
-	struct iovec iov = { 0 };
-	char ctrlmsg[CMSG_SPACE(sizeof(struct timeval))];
-
-	/* Construct msghdr to use to recevie messages from socket */
-	msg.msg_name = &addr;
-	msg.msg_namelen = sizeof(addr);
-	msg.msg_control = ctrlmsg;
-	msg.msg_controllen = sizeof(ctrlmsg);
-	msg.msg_iov = &iov;
-	msg.msg_iovlen = 1;
-	iov.iov_base = &cf;
-	iov.iov_len = sizeof(cf);
-
 	while (1) {
-		/* Recieve CAN frames */
-		if (recvmsg(s, &msg, 0) <= 0) {
-			if (errno != EINTR) {
-				perror("recvmsg");
-			}
-			continue;
-		}
-
-		frame_cnt++;
+		sleep(1);
 	}
 
 	return EXIT_SUCCESS;

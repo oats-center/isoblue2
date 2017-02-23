@@ -505,7 +505,7 @@ int main(int argc, char *argv[]) {
 
 		/* Produce the CAN frame to Kafka */
 		if (rd_kafka_produce(rkt, partition, RD_KAFKA_MSG_F_COPY,
-				buf, avro_writer_tell(writer), key, strlen(key) - 1, NULL) == -1) {
+				buf, avro_writer_tell(writer), key, strlen(key), NULL) == -1) {
 			fprintf(stderr, "%% Failed to produce to topic %s "
 							"partition %i: %s\n",
 							rd_kafka_topic_name(rkt), partition,
