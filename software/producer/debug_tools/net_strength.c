@@ -164,8 +164,8 @@ void timer_handler(int signum) {
 	fflush(stdout);
 #endif
 
-	if (ns < 0 || ns > 100) {
-		printf("%f: FIRE! Network strength %d doesn't make sense! \
+	if (ns < -100) {
+		printf("%f: FIRE! Network strength %d dBm doesn't make sense! \
 				Something WRONG!!\n", timestamp, ns);
 	}
 

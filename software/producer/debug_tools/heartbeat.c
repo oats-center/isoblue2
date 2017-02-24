@@ -141,8 +141,8 @@ void timer_handler(int signum) {
 		hb_missed = 0;
 #if DEBUG
 		printf("%f: ISOBlue is alive\n", timestamp);
-#endif
 		fflush(stdout);
+#endif
 	} else {
 		hb_missed++;
 		if (hb_missed > 5) {
@@ -152,8 +152,8 @@ void timer_handler(int signum) {
 		hb = false;
 #if DEBUG
 		printf("ISOBlue is dead at %f\n", timestamp);
-#endif
 		fflush(stdout);
+#endif
 	}
 
 	avro_datum_t ts_datum = avro_double(timestamp);
