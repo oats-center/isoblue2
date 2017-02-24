@@ -74,6 +74,7 @@ void timer_handler(int signum) {
 
 	/* Heartbeat */
 	static bool hb;
+	static int ret;
 
 	/* Broker conf */
 	if (conf == NULL) {
@@ -136,7 +137,13 @@ void timer_handler(int signum) {
 	timestamp = tp.tv_sec + tp.tv_usec / 1000000.0;
 
 	/* Check if heartbeat */
-	if (access(hb_path, F_OK) != -1) {
+	ret = system("wget -q --spider http://google.com");
+	if (ret == -1) {
+		perror("system");
+		exit(EXIT_FAILURE);
+	}
+	
+	if (WEXITSTATUS(ret) == 0) {
 		hb = true;
 		hb_missed = 0;
 #if DEBUG
@@ -144,18 +151,18 @@ void timer_handler(int signum) {
 		fflush(stdout);
 #endif
 	} else {
+		hb = false;
 		hb_missed++;
 		if (hb_missed > 5) {
-			printf("%f: FIRE! ISOBlue has been offline for at least %d mins! \
+			printf("%f: ISOBlue has been offline for at least %d mins! \
 					Network really sucks!\n", timestamp, hb_missed);
 		}
-		hb = false;
 #if DEBUG
-		printf("ISOBlue is dead at %f\n", timestamp);
+		printf("%f: ISOBlue is dead\n", timestamp);
 		fflush(stdout);
 #endif
 	}
-
+	
 	avro_datum_t ts_datum = avro_double(timestamp);
 	avro_datum_t hb_datum = avro_boolean(hb);
 

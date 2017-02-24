@@ -44,6 +44,8 @@ static char *ns_path = "/home/yang/source/isoblue2/test/network_strenth";
 static char *ns_path = "/opt/debug/network_strength";
 #endif
 static char *brokers = "localhost:9092";
+static char *command = "qmicli -p -d /dev/cdc-wdm0 --nas-get-signal-strength | \
+												head -n 3 | tail -n 1 | sed \"s/^.*'\\([-0-9]*\\) dBm'[^']*$/\\1/\"";
 
 const char D_NS_SCHEMA[] =
 "{\"type\":\"record\",\
@@ -137,35 +139,22 @@ void timer_handler(int signum) {
 	gettimeofday(&tp, NULL);
 	timestamp = tp.tv_sec + tp.tv_usec / 1000000.0;
 
-	/* Open the network strength file */
-	if (fn == NULL) {
-		fn = fopen(ns_path, "r");
-		if (!fn) {
-			perror("Network strength file");
-			exit(EXIT_FAILURE);
-		}
+	/* Get the network strength from command */
+	fn = popen(command, "r");
+	if (fn != NULL) {
+		fscanf(fn, "%d", &ns);
+	} else {
+		perror("fn");
+		exit(EXIT_FAILURE);
 	}
 
-	/* Get the network strength */
-	fseek(fn, 0, SEEK_END);
-	length = ftell(fn);
-	fseek(fn, 0, SEEK_SET);
-	ns_str = malloc(length);
-	if (ns_str) {
-		fread(ns_str, 1, length, fn);
-		if (ns_str[length - 1] == '\n') {
-			ns_str[--length] = '\0';
-		}
-	}
-
-	ns = atoi(ns_str);
 #if DEBUG
 	printf("%f: network strength is %d\n", timestamp, ns);
 	fflush(stdout);
 #endif
 
 	if (ns < -100) {
-		printf("%f: FIRE! Network strength %d dBm doesn't make sense! \
+		printf("%f: Network strength %d dBm doesn't make sense! \
 				Something WRONG!!\n", timestamp, ns);
 	}
 
