@@ -33,7 +33,6 @@
 #include <signal.h>
 #include <errno.h>
 #include <stdbool.h>
-
 #include <argp.h>
 
 #include <net/if.h>
@@ -62,6 +61,20 @@ const char RAW_CAN_SCHEMA[] =
 	{\"name\": \"payload\", \"type\": \"bytes\"},\
 	{\"name\": \"is_remote_frame\", \"type\": \"boolean\"}]}";
 
+/* fg for pgn list file */
+FILE *fg;
+int num_pgns = 0;
+#if DEBUG
+char *pgn_path = "/home/yang/source/isoblue2/test/pgns";
+char *id_path = "/home/yang/source/isoblue2/test/uuid1";
+#else
+char *pgn_path = "/opt/pgns";
+char *id_path = "/opt/id";
+#endif
+
+/* CAN socket */
+int s;
+
 /* argp goodies */
 #ifdef BUILD_NUM
 const char *argp_program_version = KAFKA_CAN_LOG_VER "\n" BUILD_NUM;
@@ -69,22 +82,19 @@ const char *argp_program_version = KAFKA_CAN_LOG_VER "\n" BUILD_NUM;
 const char *argp_program_version = KAFKA_CAN_LOG_VER;
 #endif
 const char *argp_program_bug_address = "<bugs@isoblue.org>";
-static char args_doc[] = "IFACE IDFILE TOPIC PGNFILE";
-static char doc[] = "Logs filtered CAN frames ";
+static char args_doc[] = "IFACE TOPIC";
+static char doc[] = "Logs CAN frames and produces to Kafka broker";
 static struct argp_option options[] = {
 	{NULL, 0, NULL, 0, "About", -1},
 	{NULL, 0, NULL, 0, "Configuration", 0},
 	{"iface", 'i', "<iface>", 0, "CAN interface name", 0},
-	{"id", 'd', "<id-file>", 0, "ISOBlue ID file", 0},
-	{"pgns", 'p', "<pgns-file>", 0, "PGN list file", 0},
+	{"filter", 'f', 0, OPTION_ARG_OPTIONAL, "Filter flag", 0},
 	{"topic", 't', "<topic-name>", 0, "Local Kafka topic name", 0},
 	{ 0 }
 };
 
 struct arguments {
 	char *iface;
-	char *id_file;
-	char *pgns_file;
 	char *topic_name;
 	bool filter_enable;
 };
@@ -99,13 +109,8 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state)
 			arguments->iface = arg;
 			break;
 
-		case 'd':
-			arguments->id_file = arg;
-			break;
-
-		case 'p':
-			arguments->pgns_file = arg;
-			arguments->filter_enable = ((strcmp(arg, "") == 0)? false:true);
+		case 'f':
+			arguments->filter_enable = true;
 			break;
 
 		case 't':
@@ -113,8 +118,7 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state)
 			break;
 
 		case ARGP_KEY_END:
-			if (arguments->iface == NULL || arguments->id_file == NULL
-					|| arguments->topic_name == NULL) {
+			if (arguments->iface == NULL || arguments->topic_name == NULL) {
 				argp_usage(state);
 				ret = EINVAL;
 			}
@@ -228,6 +232,95 @@ static pgn_t get_pgn(struct can_frame *cf)
 	return pgn;
 }
 
+/* SIGUSR1 handler */
+void signal_handler(int signum) {
+	bool caught = false;
+	num_pgns = 0; // reset number of PGNs
+
+	switch (signum) {
+		case SIGUSR1:
+#if DEBUG
+			printf("Got a PGN update request!\n");
+			fflush(stdout);
+#endif
+			caught = true;
+			break;
+		default:
+			return;
+	}
+
+	if (caught) {
+		/* Count the number of PGNs */
+		fg = fopen(pgn_path, "r");
+		if (fg) {
+			int ch = 0;
+			while(!feof(fg)) {
+				ch = fgetc(fg);
+				if (ch == '\n') {
+					num_pgns++;
+				}
+			}
+		} else {
+			perror("PGN list file");
+			exit(EXIT_FAILURE);
+		}
+
+#if DEBUG
+		printf("Number of PGNs found: %d\n", num_pgns);
+#endif
+
+		/* Reset the file pointer to the beginning */
+		fseek(fg, 0, SEEK_SET);
+
+		/* We assme there should be at least one PGN */
+		if (num_pgns == 0) {
+			printf("You cannot supply an empty PGN list!\n");
+			exit(EXIT_FAILURE);
+		}
+
+		/* Put PGNs into an array */
+		char pgns_str[num_pgns][20];
+		int i = 0;
+		while (fgets(pgns_str[i], 20, fg)) {
+			pgns_str[i][strlen(pgns_str[i]) - 1] = '\0';
+			i++;
+		}
+
+		pgn_t pgns[num_pgns];
+#if DEBUG
+		printf("New PGN list is:\n");
+#endif
+		for (i = 0; i < num_pgns; i++) {
+			pgns[i] = atoi(pgns_str[i]);
+			if (pgns[i] < 0 || pgns[i] > 262143) { // max PGN is 0x3ffff
+				fprintf(stderr, "PGN %u in PGN list file is not in the valid range.\n",
+						pgns[i]);
+				exit(EXIT_FAILURE);
+			}
+#if DEBUG
+			printf("%u\n", pgns[i]);
+#endif
+		}
+
+		struct can_filter pgnf[num_pgns];
+		canid_t can_id, mask;
+		for (i = 0; i < num_pgns; i++) {
+			if (pgns[i] < 61440) { // PDU format check
+				can_id = (pgns[i] & ISOBUS_PGN1_MASK) << ISOBUS_PGN_POS;
+				mask = ISOBUS_PGN1_MASK << ISOBUS_PGN_POS;
+			} else {
+				can_id = (pgns[i] & ISOBUS_PGN_MASK) << ISOBUS_PGN_POS;
+				mask = ISOBUS_PGN_MASK << ISOBUS_PGN_POS;
+			}
+			pgnf[i].can_id = can_id;
+			pgnf[i].can_mask = mask;
+		}
+		setsockopt(s, SOL_CAN_RAW, CAN_RAW_FILTER, &pgnf, sizeof(pgnf));
+	}
+
+	caught = false;
+}
+
 int main(int argc, char *argv[]) {
 #if DEBUG
 	/* fd for logging */
@@ -237,8 +330,6 @@ int main(int argc, char *argv[]) {
 
 	/* Handle options */
 	struct arguments arguments = {
-		NULL,
-		NULL,
 		NULL,
 		NULL,
 		false,	
@@ -254,15 +345,14 @@ int main(int argc, char *argv[]) {
 	char *id = 0;
 	long length;
 
-	/* fg for pgn list file */
-	FILE *fg;
+	/* Signal stuff variables */
+	struct sigaction sa;
 	
 	/* Buffers for building up the message key */
 	char key[100];
 	char pgn_str[10];
 
 	/* CAN stuff variables */
-	int s;
 	struct sockaddr_can addr;
 	struct ifreq ifr;
 	can_err_mask_t err_mask;
@@ -285,7 +375,7 @@ int main(int argc, char *argv[]) {
 	int partition = RD_KAFKA_PARTITION_UA;
 
 	/* Get the id */
-	fp = fopen(arguments.id_file, "r");
+	fp = fopen(id_path, "r");
 	if (fp) {
 		fseek(fp, 0, SEEK_END);
 		length = ftell(fp);
@@ -333,19 +423,40 @@ int main(int argc, char *argv[]) {
 	setsockopt(s, SOL_SOCKET, SO_TIMESTAMP, &val, sizeof(val));
 
 	if (arguments.filter_enable) {
-		/* Count the number of PGNs */
-		fg = fopen(arguments.pgns_file, "r");
-		int num_pgns = 0;
-		int ch = 0;
-		while(!feof(fg)) {
-			ch = fgetc(fg);
-			if (ch == '\n') {
-				num_pgns++;
-			}
+		/* Setup the sighandler */
+		memset (&sa, 0, sizeof(sa));
+		sa.sa_handler = &signal_handler;
+
+		if (sigaction(SIGUSR1, &sa, NULL) == -1) {
+			perror("sigaction"); // Should not happen
 		}
+
+		/* Count the number of PGNs */
+		fg = fopen(pgn_path, "r");
+		if (fg) {
+			int ch = 0;
+			while(!feof(fg)) {
+				ch = fgetc(fg);
+				if (ch == '\n') {
+					num_pgns++;
+				}
+			}
+		} else {
+			perror("PGN list file");
+		}
+
+#if DEBUG
+			printf("Number of PGNs found: %d\n", num_pgns);
+#endif
 
 		/* Reset the file pointer to the beginning */
 		fseek(fg, 0, SEEK_SET);
+
+		/* We assme there should be at least one PGN */
+		if (num_pgns == 0) {
+			printf("You cannot supply an empty PGN list!\n");
+			return EXIT_FAILURE;
+		}
 
 		/* Put PGNs into an array */
 		char pgns_str[num_pgns][20];
@@ -371,23 +482,20 @@ int main(int argc, char *argv[]) {
 #endif
 		}
 
-		/* Apply the PGN filters */
-		if (num_pgns > 0) {
-			struct can_filter pgnf[num_pgns];
-			canid_t can_id, mask;
-			for (i = 0; i < num_pgns; i++) {
-				if (pgns[i] < 61440) { // PDU format check
-					can_id = (pgns[i] & ISOBUS_PGN1_MASK) << ISOBUS_PGN_POS;
-					mask = ISOBUS_PGN1_MASK << ISOBUS_PGN_POS;
-				} else {
-					can_id = (pgns[i] & ISOBUS_PGN_MASK) << ISOBUS_PGN_POS;
-					mask = ISOBUS_PGN_MASK << ISOBUS_PGN_POS;
-				}
-				pgnf[i].can_id = can_id;
-				pgnf[i].can_mask = mask;
+		struct can_filter pgnf[num_pgns];
+		canid_t can_id, mask;
+		for (i = 0; i < num_pgns; i++) {
+			if (pgns[i] < 61440) { // PDU format check
+				can_id = (pgns[i] & ISOBUS_PGN1_MASK) << ISOBUS_PGN_POS;
+				mask = ISOBUS_PGN1_MASK << ISOBUS_PGN_POS;
+			} else {
+				can_id = (pgns[i] & ISOBUS_PGN_MASK) << ISOBUS_PGN_POS;
+				mask = ISOBUS_PGN_MASK << ISOBUS_PGN_POS;
 			}
-			setsockopt(s, SOL_CAN_RAW, CAN_RAW_FILTER, &pgnf, sizeof(pgnf));
+			pgnf[i].can_id = can_id;
+			pgnf[i].can_mask = mask;
 		}
+		setsockopt(s, SOL_CAN_RAW, CAN_RAW_FILTER, &pgnf, sizeof(pgnf));
 	}
 	
 	/* Buffer received CAN frames */
