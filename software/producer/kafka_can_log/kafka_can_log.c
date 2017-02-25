@@ -390,6 +390,7 @@ int main(int argc, char *argv[]) {
 		fclose(fp);
 	} else {
 		perror("ISOBlue ID file");
+		return EXIT_FAILURE;
 	}
 
 #if DEBUG
@@ -411,6 +412,7 @@ int main(int argc, char *argv[]) {
 	addr.can_ifindex = ifr.ifr_ifindex;
 
 	if (bind(s, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
+		perror("bind");
 		return EXIT_FAILURE;
 	}
 
@@ -429,6 +431,7 @@ int main(int argc, char *argv[]) {
 
 		if (sigaction(SIGUSR1, &sa, NULL) == -1) {
 			perror("sigaction"); // Should not happen
+			return EXIT_FAILURE;
 		}
 
 		/* Count the number of PGNs */
@@ -443,6 +446,7 @@ int main(int argc, char *argv[]) {
 			}
 		} else {
 			perror("PGN list file");
+			return EXIT_FAILURE;
 		}
 
 #if DEBUG
@@ -528,11 +532,12 @@ int main(int argc, char *argv[]) {
 	/* Create Kafka producer */
 	if (!(rk = rd_kafka_new(RD_KAFKA_PRODUCER, conf, errstr, sizeof(errstr)))) {
 		fprintf(stderr, "%% Failed to create new producer: %s\n", errstr);
+		return EXIT_FAILURE;
 	}
 	
 	if (rd_kafka_brokers_add(rk, brokers) == 0) {
 		fprintf(stderr, "%% No valid brokers specified\n");
-		exit(EXIT_FAILURE);
+		return EXIT_FAILURE;
 	}
 
 	/* Create new Kafka topic */
@@ -542,7 +547,7 @@ int main(int argc, char *argv[]) {
 	/* Initialize the schema structure from JSON */
 	if (avro_schema_from_json_literal(RAW_CAN_SCHEMA, &raw_can_schema)) {
 		fprintf(stderr, "Unable to parse raw can schema\n");
-		exit(EXIT_FAILURE);
+		return EXIT_FAILURE;
 	}
 
 	/* Create avro writer */
