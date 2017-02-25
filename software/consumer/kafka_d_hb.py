@@ -4,6 +4,7 @@ import io
 import sys
 import re
 import struct
+import argparse
 
 import avro.schema
 import avro.io
@@ -34,12 +35,9 @@ if __name__ == "__main__":
         reader = avro.io.DatumReader(schema)
         hb_datum = reader.read(decoder)
 
-        isoblue_id = key_splited[1:]
         hb = hb_datum['heartbeat']
         timestamp = hb_datum['timestamp']
+        isoblue_id = key_splited[1]
 
         if hb is True:
-            print str(isoblue_id), 'was alive at', str(timestamp)
-        else:
-            print str(isoblue_id), 'was dead at', str(timestamp)
-            
+            print "{:.6f}".format(timestamp), isoblue_id, 'alive'

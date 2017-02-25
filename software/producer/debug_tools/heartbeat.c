@@ -38,13 +38,7 @@
 #include <librdkafka/rdkafka.h>
 
 static char key[100];
-#if DEBUG
-static char *hb_path = "/home/yang/source/isoblue2/test/heartbeat";
-#else
-static char *hb_path = "/opt/debug/heartbeat";
-#endif
 static char *brokers = "localhost:9092";
-static int hb_missed = 0;
 
 const char D_HB_SCHEMA[] =
 "{\"type\":\"record\",\
@@ -145,55 +139,52 @@ void timer_handler(int signum) {
 	
 	if (WEXITSTATUS(ret) == 0) {
 		hb = true;
-		hb_missed = 0;
 #if DEBUG
-		printf("%f: ISOBlue is alive\n", timestamp);
+		printf("%f: alive\n", timestamp);
 		fflush(stdout);
 #endif
 	} else {
 		hb = false;
-		hb_missed++;
-		if (hb_missed > 5) {
-			printf("%f: ISOBlue has been offline for at least %d mins! \
-					Network really sucks!\n", timestamp, hb_missed);
-		}
 #if DEBUG
-		printf("%f: ISOBlue is dead\n", timestamp);
+		printf("%f: dead\n", timestamp);
 		fflush(stdout);
 #endif
 	}
-	
-	avro_datum_t ts_datum = avro_double(timestamp);
-	avro_datum_t hb_datum = avro_boolean(hb);
 
-	if (avro_record_set(d_hb, "timestamp", ts_datum)
-		|| avro_record_set(d_hb, "heartbeat", hb_datum)) {
-		fprintf(stderr, "Unable to set record to d_msg_rate\n");
-		exit(EXIT_FAILURE);
-	}
+	/* Only producing if network is good */
+	if (hb) {
+		avro_datum_t ts_datum = avro_double(timestamp);
+		avro_datum_t hb_datum = avro_boolean(hb);
 
-	if (avro_write_data(writer, d_hb_schema, d_hb)) {
-		fprintf(stderr, "unable to write d_msg_rate datum to memory\n");
-		exit(EXIT_FAILURE);
-	}
+		if (avro_record_set(d_hb, "timestamp", ts_datum)
+			|| avro_record_set(d_hb, "heartbeat", hb_datum)) {
+			fprintf(stderr, "Unable to set record to d_msg_rate\n");
+			exit(EXIT_FAILURE);
+		}
 
-	if (rd_kafka_produce(rkt, RD_KAFKA_PARTITION_UA, RD_KAFKA_MSG_F_COPY,
-			buf, avro_writer_tell(writer), key, strlen(key), NULL) == -1) {
-		fprintf(stderr, "%% Failed to produce to topic %s "
-						"partition %i: %s\n",
-						rd_kafka_topic_name(rkt), RD_KAFKA_PARTITION_UA,
-						rd_kafka_err2str(rd_kafka_last_error()));
+		if (avro_write_data(writer, d_hb_schema, d_hb)) {
+			fprintf(stderr, "unable to write d_msg_rate datum to memory\n");
+			exit(EXIT_FAILURE);
+		}
+
+		if (rd_kafka_produce(rkt, RD_KAFKA_PARTITION_UA, RD_KAFKA_MSG_F_COPY,
+				buf, avro_writer_tell(writer), key, strlen(key), NULL) == -1) {
+			fprintf(stderr, "%% Failed to produce to topic %s "
+							"partition %i: %s\n",
+							rd_kafka_topic_name(rkt), RD_KAFKA_PARTITION_UA,
+							rd_kafka_err2str(rd_kafka_last_error()));
+			rd_kafka_poll(rk, 0);
+		}
+
 		rd_kafka_poll(rk, 0);
+
+		/* Decrement all our references to prevent memory from leaking */
+		avro_datum_decref(ts_datum);
+		avro_datum_decref(hb_datum);
+
+		/* Reset the writer */
+		avro_writer_reset(writer);
 	}
-
-	rd_kafka_poll(rk, 0);
-
-	/* Decrement all our references to prevent memory from leaking */
-	avro_datum_decref(ts_datum);
-	avro_datum_decref(hb_datum);
-
-	/* Reset the writer */
-	avro_writer_reset(writer);
 }
 
 int main(int argc, char *argv[]) {

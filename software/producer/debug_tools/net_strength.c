@@ -38,11 +38,6 @@
 #include <librdkafka/rdkafka.h>
 
 static char key[100];
-#if DEBUG
-static char *ns_path = "/home/yang/source/isoblue2/test/network_strenth";
-#else
-static char *ns_path = "/opt/debug/network_strength";
-#endif
 static char *brokers = "localhost:9092";
 static char *command = "qmicli -p -d /dev/cdc-wdm0 --nas-get-signal-strength | \
 												head -n 3 | tail -n 1 | sed \"s/^.*'\\([-0-9]*\\) dBm'[^']*$/\\1/\"";
@@ -75,8 +70,6 @@ void timer_handler(int signum) {
 
 	/* Network strength file variables */
 	static int ns;
-	static int length;
-	static char *ns_str;
 	static FILE *fn;
 
 	/* Broker conf */
@@ -154,8 +147,8 @@ void timer_handler(int signum) {
 #endif
 
 	if (ns < -100) {
-		printf("%f: Network strength %d dBm doesn't make sense! \
-				Something WRONG!!\n", timestamp, ns);
+		printf("%f: Network strength %d dBm doesn't make sense! Something WRONG!\n",
+				timestamp, ns);
 	}
 
 	avro_datum_t ts_datum = avro_double(timestamp);
