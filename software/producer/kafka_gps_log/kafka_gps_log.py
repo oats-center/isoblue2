@@ -16,10 +16,10 @@ from datetime import datetime
 
 topic = 'gps'
 
-#schema_path = '/opt/schema/gpsd.avsc'
-#isoblue_id_path = '/opt/id'
-schema_path = '/home/yang/source/isoblue2/software/schema/gps.avsc'
-isoblue_id_path = '/home/yang/source/isoblue2/test/uuid1'
+schema_path = '/opt/schema/gps.avsc'
+isoblue_id_path = '/opt/id'
+#schema_path = '/home/yang/source/isoblue2/software/schema/gps.avsc'
+#isoblue_id_path = '/home/yang/source/isoblue2/test/uuid1'
 
 if __name__ == "__main__":
 
