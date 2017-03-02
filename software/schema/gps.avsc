@@ -1,59 +1,62 @@
 {
-	"namespace": "org.isoblue",
 	"type": "record",
 	"name": "gps",
 	"fields": [
 		{
-			"name": "time",
-			"type": ["null", "string"]
+			"name": "timestamp",
+			"type": ["null", "int"]
 		},
 		{
 			"name": "lat",
-			"type": ["null", "float"]
+			"type": ["null", "double"]
 		},
 		{
 			"name": "lon",
-			"type": ["null", "float"]
+			"type": ["null", "double"]
 		},
 		{
 			"name": "alt",
-			"type": ["null", "float"]
+			"type": ["null", "double"]
 		},
 		{
 			"name": "epx",
-			"type": ["null", "float"]
+			"type": ["null", "double"]
 		},
 		{
 			"name": "epy",
-			"type": ["null", "float"]
+			"type": ["null", "double"]
 		},
 		{
 			"name": "epv",
-			"type": ["null", "float"]
+			"type": ["null", "double"]
 		},
 		{
 			"name": "track",
-			"type": ["null", "float"]
+			"type": ["null", "double"]
 		},
 		{
 			"name": "speed",
-			"type": ["null", "float"]
+			"type": ["null", "double"]
 		},
 		{
 			"name": "climb",
-			"type": ["null", "float"]
+			"type": ["null", "double"]
 		},
 		{
 			"name": "epd",
-			"type": ["null", "float"]
+			"type": ["null", "double"]
 		},
 		{
 			"name": "eps",
-			"type": ["null", "float"]
+			"type": ["null", "double"]
 		},
 		{
 			"name": "epc",
-			"type": ["null", "float"]
+			"type": ["null", "double"]
+		},
+		{
+			"name": "satellites",
+			"type": ["null", "string"]
 		}
 	]
 }
