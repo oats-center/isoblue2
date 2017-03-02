@@ -25,8 +25,11 @@ if __name__ == "__main__":
     consumer = KafkaConsumer(topic, group_id=None)
 
     for message in consumer: 
-        #TODO: have check on id
-        isoblue_id = message.key
+        key_splited = message.key.split(':')
+        if key_splited[0] != 'gps':
+            continue
+
+        isoblue_id = key_splited[1]
 
         # setup avro decoder
         bytes_reader = io.BytesIO(message.value)

@@ -14,7 +14,7 @@ from kafka import KafkaProducer
 from time import sleep
 from datetime import datetime
 
-topic = 'gps'
+topic = 'remote'
 
 schema_path = '/opt/schema/gps.avsc'
 isoblue_id_path = '/opt/id'
@@ -106,7 +106,7 @@ if __name__ == "__main__":
             encoder)
 
         gps_buf = bytes_writer.getvalue()
-        producer.send(topic, key=isoblue_id, value=gps_buf)
+        producer.send(topic, key='gps:' + isoblue_id, value=gps_buf)
 
         #TODO: by removing the sleep(1), epd somehow won't set to None
         #      and error out avro serialization
