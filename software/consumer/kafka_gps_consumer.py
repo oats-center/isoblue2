@@ -12,7 +12,7 @@ import avro.io
 from struct import *
 from kafka import KafkaConsumer
 
-topic = 'gps'
+topic = 'remote'
 
 if __name__ == "__main__":
 

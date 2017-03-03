@@ -2,6 +2,7 @@
 
 import io
 import sys
+import copy
 
 import avro
 import avro.schema
@@ -15,11 +16,12 @@ from time import sleep
 from datetime import datetime
 
 topic = 'remote'
-
 schema_path = '/opt/schema/gps.avsc'
 isoblue_id_path = '/opt/id'
 #schema_path = '/home/yang/source/isoblue2/software/schema/gps.avsc'
 #isoblue_id_path = '/home/yang/source/isoblue2/test/uuid1'
+timestamp_last = None
+duplicates = 0
 
 if __name__ == "__main__":
 
@@ -51,36 +53,46 @@ if __name__ == "__main__":
     while True:
         timestamp = None
         satellites = None
+
+        # copy the object
+        data_stream_copy = copy.deepcopy(agps_thread.data_stream)
+
         # set 'n/a' to None for object attributes
-        for attr, value in agps_thread.data_stream.__dict__.iteritems():
+        for attr, value in data_stream_copy.__dict__.iteritems():
             #print attr, 'is', value
             if value == 'n/a':
-                setattr(agps_thread.data_stream, attr, None)
-        if agps_thread.data_stream.time is not None:
-            utc_dt = datetime.strptime(agps_thread.data_stream.time, '%Y-%m-%dT%H:%M:%S.%fZ')
-            timestamp = int((utc_dt - datetime(1970, 1, 1)).total_seconds())
-        if agps_thread.data_stream.satellites is not None:
-            satellites = str(agps_thread.data_stream.satellites)
+                #print '*****************'
+                #print attr, 'is n/a'
+                setattr(data_stream_copy, attr, None)
+                #print 'now', attr, 'is', getattr(data_stream_copy, attr)
+                #print '*****************'
 
-        lat = agps_thread.data_stream.lat
-        lon = agps_thread.data_stream.lon
-        alt = agps_thread.data_stream.alt
-        epx = agps_thread.data_stream.epx
-        epy = agps_thread.data_stream.epy
-        epv = agps_thread.data_stream.epv
-        track = agps_thread.data_stream.track
-        speed = agps_thread.data_stream.speed
-        climb = agps_thread.data_stream.climb
-        epd = agps_thread.data_stream.epd
-        eps = agps_thread.data_stream.eps
-        epc = agps_thread.data_stream.epc
+        # convert time to unix timestamp
+        if data_stream_copy.time is not None:
+            utc_dt = datetime.strptime(data_stream_copy.time, '%Y-%m-%dT%H:%M:%S.%fZ')
+            timestamp = int((utc_dt - datetime(1970, 1, 1)).total_seconds())
+            # ditch duplicate timestamps
+            if timestamp_last is not None and (timestamp_last - timestamp) == 0:
+                #print '!!!!!!!!!!!!!!!!!'
+                #print '\tduplicate'
+                #print '!!!!!!!!!!!!!!!!!'
+                duplicates = duplicates + 1
+                if duplicates > 10:
+                    print 'Too many duplicates, are we having good GPS fix?'
+                sleep(1)
+                continue
+
+        # convert satelittes message to string
+        if data_stream_copy.satellites is not None:
+            satellites = str(data_stream_copy.satellites)
 
         #print('---------------------')
-        #print(                   agps_thread.data_stream.time)
+        #print(                   data_stream_copy.time)
         #print('UNIX ts:{}    '.format(timestamp))
-        #print('Lat:{}   '.format(agps_thread.data_stream.lat))
-        #print('Lon:{}   '.format(agps_thread.data_stream.lon))
-        #print('Speed:{} '.format(agps_thread.data_stream.speed))
+        #print('UNIX ts_last:{}    '.format(timestamp_last))
+        #print('Lat:{}   '.format(data_stream_copy.lat))
+        #print('Lon:{}   '.format(data_stream_copy.lon))
+        #print('Speed:{} '.format(data_stream_copy.speed))
         #print('---------------------')
 
         gps_datum = avro.io.DatumWriter(schema)
@@ -89,18 +101,18 @@ if __name__ == "__main__":
 
         gps_datum.write({
             "timestamp":timestamp,
-            "lat":lat,
-            "lon":lon,
-            "alt":alt,
-            "epx":epx,
-            "epy":epy,
-            "epv":epv,
-            "track":track,
-            "speed":speed,
-            "climb":climb,
-            "epd":epd,
-            "eps":eps,
-            "epc":epc,
+            "lat":data_stream_copy.lat,
+            "lon":data_stream_copy.lon,
+            "alt":data_stream_copy.alt,
+            "epx":data_stream_copy.epx,
+            "epy":data_stream_copy.epy,
+            "epv":data_stream_copy.epv,
+            "track":data_stream_copy.track,
+            "speed":data_stream_copy.speed,
+            "climb":data_stream_copy.climb,
+            "epd":data_stream_copy.epd,
+            "eps":data_stream_copy.eps,
+            "epc":data_stream_copy.epc,
             "satellites":satellites 
             },
             encoder)
@@ -108,6 +120,6 @@ if __name__ == "__main__":
         gps_buf = bytes_writer.getvalue()
         producer.send(topic, key='gps:' + isoblue_id, value=gps_buf)
 
-        #TODO: by removing the sleep(1), epd somehow won't set to None
-        #      and error out avro serialization
+        timestamp_last = timestamp
+
         sleep(1)
