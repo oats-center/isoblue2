@@ -137,7 +137,13 @@ void timer_handler(int signum) {
 	if (fn != NULL) {
 		fscanf(fn, "%d", &ns);
 	} else {
-		perror("fn");
+		perror("popen");
+		exit(EXIT_FAILURE);
+	}
+
+	/* Close the subprocess */
+	if (pclose(fn) < 0) {
+		perror("pclose");
 		exit(EXIT_FAILURE);
 	}
 
