@@ -1,7 +1,36 @@
+[
 {
+	"name": "SATRecord",
 	"type": "record",
-	"name": "gps",
-	"fields": [
+	"fields":
+	[
+		{
+			"name": "prn",
+			"type": ["null", "int"]
+		},
+		{
+			"name": "az",
+			"type": ["null", "int"]
+		},
+		{
+			"name": "el",
+			"type": ["null", "int"]
+		},
+		{
+			"name": "ss",
+			"type": ["null", "int"]
+		},
+		{
+			"name": "used",
+			"type": ["null", "boolean"]
+		}
+	]
+},
+{
+  "name": "TPVRecord",
+  "type": "record",
+  "fields":
+	[
 		{
 			"name": "timestamp",
 			"type": ["null", "int"]
@@ -53,10 +82,67 @@
 		{
 			"name": "epc",
 			"type": ["null", "double"]
+		}
+	]
+},
+{
+  "name": "SKYRecord",
+  "type": "record",
+  "fields":
+	[
+		{
+			"name": "xdop",
+			"type": ["null", "double"]
+		},
+		{
+			"name": "ydop",
+			"type": ["null", "double"]
+		},
+		{
+			"name": "vdop",
+			"type": ["null", "double"]
+		},
+		{
+			"name": "tdop",
+			"type": ["null", "double"]
+		},
+		{
+			"name": "hdop",
+			"type": ["null", "double"]
+		},
+		{
+			"name": "pdop",
+			"type": ["null", "double"]
+		},
+		{
+			"name": "gdop",
+			"type": ["null", "double"]
 		},
 		{
 			"name": "satellites",
-			"type": ["null", "string"]
+			"type":
+			[
+				{
+					"type": "array",
+					"items": "SATRecord"
+				}
+			]
 		}
 	]
+},
+{
+  "name": "gps",
+  "type": "record",
+  "fields":
+	[
+		{
+			"name": "TPV",
+			"type": "TPVRecord"
+		},
+		{
+			"name": "SKY",
+			"type": "SKYRecord"
+		}
+  ]
 }
+]
