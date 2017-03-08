@@ -49,7 +49,7 @@ void timer_handler(int signum) {
 		// sleep 1 second to have frame_cnt incremented.
 		sleep(1);
 #if DEBUG
-		printf("No CAN activity in 5 second. Shutting down the ISOBlue...\n");
+		printf("No CAN activity in 1 min. Shutting down the ISOBlue...\n");
 #endif
 		system("echo mem > /sys/power/state");
 	} else {
@@ -73,11 +73,11 @@ int main(int argc, char *argv[]) {
 	sa.sa_handler = &timer_handler;
 	sigaction(SIGALRM, &sa, NULL);
 
-	/* Configure the timer to expire after 1 sec... */
-	timer.it_value.tv_sec = 5;
+	/* Configure the timer to expire after 1 min... */
+	timer.it_value.tv_sec = 60;
 	timer.it_value.tv_usec = 0;
-	/* ... and every 1 sec after that. */
-	timer.it_interval.tv_sec = 5;
+	/* ... and every 1 min after that. */
+	timer.it_interval.tv_sec = 60;
 	timer.it_interval.tv_usec = 0;
 
 	/* Start a real timer. It counts down whenever this process is
