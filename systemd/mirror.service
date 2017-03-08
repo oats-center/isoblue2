@@ -1,0 +1,13 @@
+[Unit]
+Description=Apache Kafka Mirror Maker Service
+Documentation=http://kafka.apache.org/documentation.html
+Requires=broker.service zookeeper.service
+Before=sleep.target
+After=network.target zookeeper.service broker.service
+ConditionPathExists=/opt/kafka
+
+[Service]
+Type=simple
+ExecStart=/bin/bash -c "/opt/kafka/bin/kafka-mirror-maker.sh --consumer.config /opt/kafka/config/consumer.properties --producer.config /opt/kafka/config/isoblueProducer.properties --num.streams 2 --whitelist 'remote|debug'"
+Restart=on-failure
+RestartSec=2

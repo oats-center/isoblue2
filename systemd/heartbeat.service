@@ -1,0 +1,12 @@
+[Unit]
+Description=Heartbeat Report Service
+Documentation=http://www.isoblue.org/
+Requires=broker.service zookeeper.service mirror.service
+After=broker.service zookeeper.service mirror.service
+ConditionPathExists=/opt/bin
+
+[Service]
+Type=simple
+ExecStart=/bin/bash -c '/opt/bin/heartbeat /opt/id'
+Restart=on-failure
+RestartSec=2

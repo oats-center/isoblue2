@@ -1,21 +1,16 @@
-# /etc/systemd/system/zookeeper.service
-
 [Unit]
 Description=Apache ZooKeeper Service
 Documentation=http://kafka.apache.org/documentation.html
-Requires=network.target remote-fs.target 
-Before=shutdown.target sleep.target
-After=network.target remote-fs.target
-ConditionPathExists=/opt/kafka
+Requires=network.target remote-fs.target
+Before=shutdown.target sleep.target broker.service
+After=network.target remote-fs.target dev-sda1.device
 
 [Service]
 Type=simple
 ExecStart=/opt/kafka/bin/zookeeper-server-start.sh /opt/kafka/config/zookeeper.properties
-ExecStartPost=/bin/bash -c '/bin/echo 0 > /sys/class/leds/LED_5_RED/brightness'
 ExecStop=/opt/kafka/bin/zookeeper-server-stop.sh
-ExecStopPost=/bin/bash -c '/bin/echo 255 > /sys/class/leds/LED_5_RED/brightness'
 Restart=on-failure
-RestartSec=5
+RestartSec=1
 
 [Install]
 WantedBy=multi-user.target

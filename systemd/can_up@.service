@@ -1,5 +1,3 @@
-# /etc/systemd/system/ib_up@.service
-
 [Unit]
 Description=Bring %I Interfaces Up
 
@@ -8,8 +6,6 @@ Type=oneshot
 RemainAfterExit=yes
 ExecStart=/sbin/ip link set %I type can bitrate 250000
 ExecStart=/sbin/ip link set %I up
-# Restart=on-failure
-# RestartSec=2s
 
 [Install]
 WantedBy=multi-user.target

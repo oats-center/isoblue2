@@ -1,0 +1,12 @@
+[Unit]
+Description=CAN Tractor Bus Remote Producer
+Documentation=http://www.isoblue.org/
+Requires=broker.service zookeeper.service
+After=can_up@tra.service broker.service
+ConditionPathExists=/opt/bin
+
+[Service]
+Type=simple
+ExecStart=/bin/bash -c '/opt/bin/kafka_can_log -i tra -t remote -f'
+Restart=on-failure
+RestartSec=1

@@ -1,0 +1,10 @@
+[Unit]
+Description=Port forward SSH for access from %I
+
+[Service]
+ExecStart=/usr/bin/ssh -NR *:2222:localhost:22 isoblue2@%i
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

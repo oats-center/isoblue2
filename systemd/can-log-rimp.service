@@ -1,0 +1,12 @@
+[Unit]
+Description=CAN Implement Bus Remote Kafka Producer
+Documentation=http://www.isoblue.org/
+Requires=broker.service zookeeper.service
+After=can_up@imp.service broker.service
+ConditionPathExists=/opt/bin
+
+[Service]
+Type=simple
+ExecStart=/bin/bash -c '/opt/bin/kafka_can_log -i imp -t remote -f'
+Restart=on-failure
+RestartSec=1

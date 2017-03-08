@@ -1,16 +1,14 @@
-# /etc/systemd/system/can-watchdog.service
-
 [Unit]
 Description=CAN Activity Watchdog
 Documentation=http://www.isoblue.org/
-After=ib_up@ib_imp.service ib_up@ib_eng.service
-ConditionPathExists=/opt/isoblue2/can_watchdog
+After=can_up@imp.service can_up@tra.service
+ConditionPathExists=/opt/bin
 
 [Service]
 Type=simple
-ExecStart=/opt/isoblue2/can_watchdog/can_watchdog.py
+ExecStart=/opt/bin/can_watchdog
 Restart=on-failure
-RestartSec=5
+RestartSec=1
 
 [Install]
 WantedBy=multi-user.target

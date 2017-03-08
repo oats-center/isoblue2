@@ -1,0 +1,15 @@
+[Unit]
+Description=PGN List Updater
+Documentation=http://isoblue.org
+Requires=network.target remote-fs.target
+Before=shutdown.target sleep.target
+After=network.target remote-fs.target can-log-rimp.service can-log-rtra.service
+
+[Service]
+Type=simple
+ExecStart=/opt/bin/get_pgns.sh
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
