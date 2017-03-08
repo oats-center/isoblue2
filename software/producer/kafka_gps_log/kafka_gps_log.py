@@ -100,12 +100,15 @@ if __name__ == "__main__":
                 gps_datum = avro.io.DatumWriter(schema)
                 bytes_writer = io.BytesIO()
                 encoder = avro.io.BinaryEncoder(bytes_writer)
-                
+
                 # write to the datum
                 gps_datum.write(datum, encoder)
                 # produce the message to Kafka
                 gps_buf = bytes_writer.getvalue()
                 producer.send(args.topic, key='gps:' + isoblue_id, value=gps_buf)
+
+                datum = {}
+                gps_datum = None
 
     except KeyboardInterrupt:
 
