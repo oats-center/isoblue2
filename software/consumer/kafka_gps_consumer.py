@@ -17,7 +17,7 @@ topic = 'remote'
 if __name__ == "__main__":
 
     # avro schema path
-    schema_path = '../schema/test.avsc'
+    schema_path = '../schema/gps.avsc'
 
     # load avro schema
     schema = avro.schema.parse(open(schema_path).read())

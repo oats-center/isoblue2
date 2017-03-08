@@ -16,10 +16,10 @@ from kafka import KafkaProducer
 from time import sleep
 from datetime import datetime
 
-#schema_path = '/opt/schema/gps.avsc'
-#isoblue_id_path = '/opt/id'
-schema_path = '/home/yang/source/isoblue2/software/schema/test.avsc'
-isoblue_id_path = '/home/yang/source/isoblue2/test/uuid1'
+schema_path = '/opt/schema/gps.avsc'
+isoblue_id_path = '/opt/id'
+#schema_path = '/home/yang/source/isoblue2/software/schema/test.avsc'
+#isoblue_id_path = '/home/yang/source/isoblue2/test/uuid1'
 
 if __name__ == "__main__":
 
