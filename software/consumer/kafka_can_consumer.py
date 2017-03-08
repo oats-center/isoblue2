@@ -84,30 +84,34 @@ if __name__ == "__main__":
 
     # iterate through received messages
     for msg in consumer:
-        # setup decoder
-        bytes_reader = io.BytesIO(msg.value)
-        decoder = avro.io.BinaryDecoder(bytes_reader)
-        reader = avro.io.DatumReader(schema)
-        raw_can_datum = reader.read(decoder)
- 
-        # unpack the binary data and convert it to a list
-        data = struct.unpack("BBBBBBBB", raw_can_datum["payload"])
-        data_list = list(data)
+        # check keys
+        # disregard any message that does not have imp/tra key
+        key_splited = message.key.split(':')
+        if key_splited[0] == 'imp' or key_splited[0] == 'tra':
+            # setup decoder
+            bytes_reader = io.BytesIO(msg.value)
+            decoder = avro.io.BinaryDecoder(bytes_reader)
+            reader = avro.io.DatumReader(schema)
+            raw_can_datum = reader.read(decoder)
+     
+            # unpack the binary data and convert it to a list
+            data = struct.unpack("BBBBBBBB", raw_can_datum["payload"])
+            data_list = list(data)
 
-        # convert arbitration_id to hex, pad 0 to make it length 8
-        arbitration_id = (hex(raw_can_datum["arbitration_id"])[2:]).rjust(8, "0")
+            # convert arbitration_id to hex, pad 0 to make it length 8
+            arbitration_id = (hex(raw_can_datum["arbitration_id"])[2:]).rjust(8, "0")
 
-        # iterate through data_list and pad 0 if the length is not 2
-        for i in range(len(data_list)):
-            # convert each number to hex string
-            data_list[i] = hex(data_list[i])[2:]
-            # pad zero if the hex number length is 1
-            if len(data_list[i]) == 1:
-               data_list[i] = data_list[i].rjust(2, "0")
+            # iterate through data_list and pad 0 if the length is not 2
+            for i in range(len(data_list)):
+                # convert each number to hex string
+                data_list[i] = hex(data_list[i])[2:]
+                # pad zero if the hex number length is 1
+                if len(data_list[i]) == 1:
+                   data_list[i] = data_list[i].rjust(2, "0")
 
-        # join hex string into one, make the message hex string
-        data_payload = ''.join(data_list)
-        message = arbitration_id + data_payload
-        parsed_message = parse(message, raw_can_datum["timestamp"])
-        print parsed_message['timestamp'], parsed_message['pgn'], ''.join(parsed_message['payload_bytes'])
+            # join hex string into one, make the message hex string
+            data_payload = ''.join(data_list)
+            message = arbitration_id + data_payload
+            parsed_message = parse(message, raw_can_datum["timestamp"])
+            print parsed_message['timestamp'], parsed_message['pgn'], ''.join(parsed_message['payload_bytes'])
 
