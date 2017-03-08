@@ -86,7 +86,7 @@ if __name__ == "__main__":
     for msg in consumer:
         # check keys
         # disregard any message that does not have imp/tra key
-        key_splited = message.key.split(':')
+        key_splited = msg.key.split(':')
         if key_splited[0] == 'imp' or key_splited[0] == 'tra':
             # setup decoder
             bytes_reader = io.BytesIO(msg.value)
