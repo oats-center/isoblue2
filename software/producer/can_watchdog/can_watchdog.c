@@ -51,6 +51,7 @@ void timer_handler(int signum) {
 #if DEBUG
 		printf("No CAN activity in 1 min. Shutting down the ISOBlue...\n");
 #endif
+		system("echo on > sys/bus/usb/devices/usb2/power/control"); // prevent system from autosuspend usb
 		system("echo mem > /sys/power/state");
 	} else {
 		/* Clear the count */
@@ -74,10 +75,10 @@ int main(int argc, char *argv[]) {
 	sigaction(SIGALRM, &sa, NULL);
 
 	/* Configure the timer to expire after 1 min... */
-	timer.it_value.tv_sec = 60;
+	timer.it_value.tv_sec = 5;
 	timer.it_value.tv_usec = 0;
 	/* ... and every 1 min after that. */
-	timer.it_interval.tv_sec = 60;
+	timer.it_interval.tv_sec = 5;
 	timer.it_interval.tv_usec = 0;
 
 	/* Start a real timer. It counts down whenever this process is
