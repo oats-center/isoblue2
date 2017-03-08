@@ -17,7 +17,7 @@ topic = 'remote'
 if __name__ == "__main__":
 
     # avro schema path
-    schema_path = '../schema/gps.avsc'
+    schema_path = '../schema/test.avsc'
 
     # load avro schema
     schema = avro.schema.parse(open(schema_path).read())
@@ -37,20 +37,5 @@ if __name__ == "__main__":
         reader = avro.io.DatumReader(schema)
         gps_datum = reader.read(decoder)
 
-        timestamp = gps_datum['timestamp']
-        lat = gps_datum['lat']
-        lon = gps_datum['lon']
-        alt = gps_datum['alt']
-        epx = gps_datum['epx']
-        epy = gps_datum['epy']
-        epv = gps_datum['epv']
-        track = gps_datum['track']
-        speed = gps_datum['speed']
-        climb = gps_datum['climb']
-        epd = gps_datum['epd']
-        eps = gps_datum['eps']
-        epc = gps_datum['epc']
-        satellites = gps_datum['satellites']
-
-        #print isoblue_id, lat, lon, alt, epx, epy, epv, track, speed, climb, epd, eps, epc, satellites
-        print timestamp, lat, lon, speed 
+        print gps_datum
+        print ''

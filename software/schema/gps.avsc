@@ -1,6 +1,6 @@
 [
 {
-	"name": "SATRecord",
+	"name": "sat_record",
 	"type": "record",
 	"fields":
 	[
@@ -27,13 +27,17 @@
 	]
 },
 {
-  "name": "TPVRecord",
+  "name": "tpv_record",
   "type": "record",
   "fields":
 	[
 		{
-			"name": "timestamp",
+			"name": "time",
 			"type": ["null", "int"]
+		},
+		{
+			"name": "status",
+			"type": ["null", "int"] 
 		},
 		{
 			"name": "lat",
@@ -86,10 +90,14 @@
 	]
 },
 {
-  "name": "SKYRecord",
+  "name": "sky_record",
   "type": "record",
   "fields":
 	[
+		{
+			"name": "time",
+			"type": ["null", "int"]
+		},
 		{
 			"name": "xdop",
 			"type": ["null", "double"]
@@ -124,25 +132,52 @@
 			[
 				{
 					"type": "array",
-					"items": "SATRecord"
+					"items": "sat_record"
 				}
 			]
 		}
 	]
 },
 {
-  "name": "gps",
-  "type": "record",
-  "fields":
+	"name": "pps_record",
+	"type": "record",
+	"fields":
 	[
 		{
-			"name": "TPV",
-			"type": "TPVRecord"
+			"name": "real_sec",
+			"type": "long"
 		},
 		{
-			"name": "SKY",
-			"type": "SKYRecord"
+			"name": "real_nsec",
+			"type": "long"
+		},
+		{
+			"name": "clock_sec",
+			"type": "long"
+		},
+		{
+			"name": "clock_nsec",
+			"type": "long"
+		},
+		{
+			"name": "precision",
+			"type": "int"
 		}
-  ]
+	]
+},
+{
+	"name": "gps",
+	"type": "record",
+	"fields":
+	[
+		{
+			"name": "object_name",
+			"type": "string"
+		},
+		{
+			"name": "object",
+			"type": ["tpv_record", "sky_record", "pps_record"]
+		}
+	]
 }
 ]
