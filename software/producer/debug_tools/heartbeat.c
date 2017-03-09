@@ -139,12 +139,16 @@ void timer_handler(int signum) {
 	
 	if (WEXITSTATUS(ret) == 0) {
 		hb = true;
+		system("echo 0 > /sys/class/leds/LED_4_RED/brightness");
+		system("echo 255 > /sys/class/leds/LED_4_GREEN/brightness");
 #if DEBUG
 		printf("%f: alive\n", timestamp);
 		fflush(stdout);
 #endif
 	} else {
 		hb = false;
+		system("echo 0 > /sys/class/leds/LED_4_GREEN/brightness");
+		system("echo 255 > /sys/class/leds/LED_4_RED/brightness");
 #if DEBUG
 		printf("%f: dead\n", timestamp);
 		fflush(stdout);
