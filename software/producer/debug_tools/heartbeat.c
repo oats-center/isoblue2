@@ -139,6 +139,7 @@ void timer_handler(int signum) {
 	
 	if (WEXITSTATUS(ret) == 0) {
 		hb = true;
+		/* Indicate online */
 		system("echo 0 > /sys/class/leds/LED_4_RED/brightness");
 		system("echo 255 > /sys/class/leds/LED_4_GREEN/brightness");
 #if DEBUG
@@ -147,6 +148,7 @@ void timer_handler(int signum) {
 #endif
 	} else {
 		hb = false;
+		/* Indicate offline */
 		system("echo 0 > /sys/class/leds/LED_4_GREEN/brightness");
 		system("echo 255 > /sys/class/leds/LED_4_RED/brightness");
 #if DEBUG
@@ -245,6 +247,8 @@ int main(int argc, char *argv[]) {
 	/* Start a real timer. It counts down whenever this process is
 	 * executing. */
 	setitimer(ITIMER_REAL, &timer, NULL);
+	
+	system("echo 255 > /sys/class/leds/LED_4_RED/brightness");
 
 	while (1) {
 		sleep(1);
