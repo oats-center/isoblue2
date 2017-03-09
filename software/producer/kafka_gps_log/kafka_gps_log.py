@@ -110,6 +110,8 @@ if __name__ == "__main__":
                 datum = {}
                 gps_datum = None
 
+                sleep(0.1)
+
     except KeyboardInterrupt:
 
         s.close()
