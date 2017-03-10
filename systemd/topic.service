@@ -1,0 +1,14 @@
+[Unit]
+Description=Topic Settings Service
+Documentation=http://kafka.apache.org/documentation.html
+Requires=broker.service zookeeper.service
+After=zookeeper.service broker.service
+
+[Service]
+Type=simple
+ExecStart=/bin/bash -c "/opt/kafka/bin/kafka-configs.sh --zookeeper localhost:2181 --entity-type topics --entity-name remote --alter --add-config retention.bytes=100000000000,retention.ms=86400000" 
+Restart=always
+RestartSec=60
+
+[Install]
+WantedBy=multi-user.target

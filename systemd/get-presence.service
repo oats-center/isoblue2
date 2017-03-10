@@ -1,0 +1,14 @@
+[Unit]
+Description=Script Presence Monitor
+Documentation=http://isoblue.org
+Before=shutdown.target sleep.target
+After=network.target remote-fs.target can-log-limp.service can-log-ltra.service can-log-rimp.service can-log-rtra.service gps-log@remote.service gps-log@gps.service
+
+[Service]
+Type=simple
+ExecStart=/opt/bin/get_presence.sh
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

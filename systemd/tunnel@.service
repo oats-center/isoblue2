@@ -1,0 +1,10 @@
+[Unit]
+Description=Kafka Tunnel for Remote IP %I
+
+[Service]
+ExecStart=/usr/bin/ssh -NL localhost:2223:%i:9092 -L localhost:2224:%i:2181 isoblue2@%i
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
