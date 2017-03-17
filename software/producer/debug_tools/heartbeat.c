@@ -39,6 +39,7 @@
 
 static char key[100];
 static char *brokers = "localhost:9092";
+int offline_min = 0;
 
 const char D_HB_SCHEMA[] =
 "{\"type\":\"record\",\
@@ -139,6 +140,7 @@ void timer_handler(int signum) {
 	
 	if (WEXITSTATUS(ret) == 0) {
 		hb = true;
+		offline_min = 0;
 		/* Indicate online */
 		system("echo 0 > /sys/class/leds/LED_4_RED/brightness");
 		system("echo 255 > /sys/class/leds/LED_4_GREEN/brightness");
@@ -148,9 +150,16 @@ void timer_handler(int signum) {
 #endif
 	} else {
 		hb = false;
+		offline_min++;
 		/* Indicate offline */
 		system("echo 0 > /sys/class/leds/LED_4_GREEN/brightness");
 		system("echo 255 > /sys/class/leds/LED_4_RED/brightness");
+
+		if (offline_min > 2) {
+			/* Force dhclient lease renewal */
+			system("dhclient -r");
+			system("dhclient wwan0");
+		}
 #if DEBUG
 		printf("%f: dead\n", timestamp);
 		fflush(stdout);
