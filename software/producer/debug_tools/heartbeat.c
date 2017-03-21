@@ -154,15 +154,18 @@ void timer_handler(int signum) {
 		/* Indicate offline */
 		system("echo 0 > /sys/class/leds/LED_4_GREEN/brightness");
 		system("echo 255 > /sys/class/leds/LED_4_RED/brightness");
-
-		if (offline_min > 2) {
-			/* Force udev trigger on the modem */
-			system("udevadm trigger /sys/class/net/wwan0");
-		}
 #if DEBUG
 		printf("%f: dead\n", timestamp);
 		fflush(stdout);
 #endif
+		if (offline_min > 2) {
+			/* Force udev trigger on the modem */
+#if DEBUG
+			printf("Try force udev triggering ...\n");
+			fflush(stdout);
+#endif
+			system("udevadm trigger /sys/class/net/wwan0");
+		}
 	}
 
 	/* Only producing if network is good */
