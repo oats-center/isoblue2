@@ -156,9 +156,8 @@ void timer_handler(int signum) {
 		system("echo 255 > /sys/class/leds/LED_4_RED/brightness");
 
 		if (offline_min > 2) {
-			/* Force dhclient lease renewal */
-			system("dhclient -r");
-			system("dhclient wwan0");
+			/* Force udev trigger on the modem */
+			system("udevadm trigger /sys/class/net/wwan0");
 		}
 #if DEBUG
 		printf("%f: dead\n", timestamp);
