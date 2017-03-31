@@ -1,0 +1,13 @@
+[Unit]
+Description=Kafka GPS Log Service
+Documentation=http://www.isoblue.org/
+After=gpsd.service zookeeper.service broker.service mirror.service
+
+[Service]
+Type=simple
+ExecStart=/opt/bin/kafka_gps_log.py -t %i 
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target
