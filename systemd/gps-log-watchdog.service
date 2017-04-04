@@ -1,0 +1,14 @@
+[Unit]
+Description=GPS Log Size Monitor
+Documentation=http://isoblue.org
+Before=shutdown.target sleep.target
+After=gpsd.service gps-log@remote.service gps-log@gps.service
+
+[Service]
+Type=simple
+ExecStart=/opt/bin/gps_log_watchdog.sh
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target
