@@ -72,7 +72,7 @@ if __name__ == "__main__":
             
                 # the object should be TPV now
                 if object_name == 'TPV':
-                    if new_data['time']:
+                    if 'time' in new_data:
                         utc_dt = datetime.strptime(new_data['time'], '%Y-%m-%dT%H:%M:%S.%fZ')
                         timestamp = int((utc_dt - datetime(1970, 1, 1)).total_seconds())
                         new_data['time'] = timestamp
