@@ -8,8 +8,12 @@ import struct
 import avro.schema
 import avro.io
 
+import paho.mqtt.client as mqtt
+
 from struct import *
 from kafka import KafkaConsumer
+
+from time import sleep
 
 topic = 'debug'
 
@@ -21,6 +25,10 @@ if __name__ == "__main__":
     schema = avro.schema.parse(open(schema_path).read())
 
     consumer = KafkaConsumer(topic, group_id=None)
+
+    client = mqtt.Client(transport='websockets')
+    client.connect('localhost', 1883, 60)
+    client.loop_start()
 
     for message in consumer: 
         # disregard any message that does not have heartbeat key
@@ -39,4 +47,6 @@ if __name__ == "__main__":
         timestamp = ns_datum['timestamp']
 
         if ns:
+            client.publish('ib1/ns', payload=json.dumps(ns_datum))
             print str(isoblue_id), 'network strength is', ns, 'at', str(timestamp)
+            sleep(0.1)
