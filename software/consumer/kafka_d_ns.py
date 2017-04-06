@@ -4,6 +4,7 @@ import io
 import sys
 import re
 import struct
+import json
 
 import avro.schema
 import avro.io
