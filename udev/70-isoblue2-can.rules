@@ -1,5 +1,3 @@
-# /etc/udev/rules.d/70-can-rename.rules
-
 # CAN interface on tractor bus
 KERNEL=="can[0-9]*", KERNELS=="2090000.can", NAME="tra", TAG+="systemd", ENV{SYSTEMD_WANTS}="can_up@tra.service"
 
