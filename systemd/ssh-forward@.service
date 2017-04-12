@@ -1,8 +1,8 @@
 [Unit]
-Description=Port forward SSH for access from %I
+Description=Port forward port %I to vip4.ecn.purdue.edu
 
 [Service]
-ExecStart=/usr/bin/ssh -NR *:2222:localhost:22 isoblue2@%i
+ExecStart=/usr/bin/ssh -NR *:%i:localhost:22 isoblue2@vip4.ecn.purdue.edu
 Restart=always
 RestartSec=5
 
