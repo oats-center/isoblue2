@@ -1,6 +1,6 @@
 #!/bin/sh
 
-curl -o /opt/tmp_pgns http://52.54.160.103/pgns -m 30 > /dev/null 2>&1
+curl -o /opt/tmp_pgns http://cloudradio39.ecn.purdue.edu/pgns -m 30 > /dev/null 2>&1
 
 if [ $? != 0 ]; then
 	echo 'curl failed, check network status'
