@@ -4,7 +4,7 @@ curl -o /opt/tmp_pgns http://cloudradio39.ecn.purdue.edu/pgns -m 30 > /dev/null 
 
 if [ $? != 0 ]; then
 	echo 'curl failed, check network status'
-  udevadm trigger
+  udevadm trigger && echo 'try retriggering udev to setup Internet ...'
 	exit 1
 fi
 
