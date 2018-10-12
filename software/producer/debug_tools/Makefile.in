@@ -86,8 +86,7 @@ POST_INSTALL = :
 NORMAL_UNINSTALL = :
 PRE_UNINSTALL = :
 POST_UNINSTALL = :
-bin_PROGRAMS = net_strength$(EXEEXT) can_msg_rate$(EXEEXT) \
-	heartbeat$(EXEEXT)
+bin_PROGRAMS = can_msg_rate$(EXEEXT) heartbeat$(EXEEXT)
 subdir = debug_tools
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/configure.ac
@@ -105,9 +104,6 @@ can_msg_rate_LDADD = $(LDADD)
 am_heartbeat_OBJECTS = heartbeat.$(OBJEXT)
 heartbeat_OBJECTS = $(am_heartbeat_OBJECTS)
 heartbeat_LDADD = $(LDADD)
-am_net_strength_OBJECTS = net_strength.$(OBJEXT)
-net_strength_OBJECTS = $(am_net_strength_OBJECTS)
-net_strength_LDADD = $(LDADD)
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
 am__v_P_0 = false
@@ -136,10 +132,8 @@ AM_V_CCLD = $(am__v_CCLD_@AM_V@)
 am__v_CCLD_ = $(am__v_CCLD_@AM_DEFAULT_V@)
 am__v_CCLD_0 = @echo "  CCLD    " $@;
 am__v_CCLD_1 = 
-SOURCES = $(can_msg_rate_SOURCES) $(heartbeat_SOURCES) \
-	$(net_strength_SOURCES)
-DIST_SOURCES = $(can_msg_rate_SOURCES) $(heartbeat_SOURCES) \
-	$(net_strength_SOURCES)
+SOURCES = $(can_msg_rate_SOURCES) $(heartbeat_SOURCES)
+DIST_SOURCES = $(can_msg_rate_SOURCES) $(heartbeat_SOURCES)
 am__can_run_installinfo = \
   case $$AM_UPDATE_INFO_DIR in \
     n|no|NO) false;; \
@@ -254,7 +248,6 @@ target_alias = @target_alias@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-net_strength_SOURCES = net_strength.c
 can_msg_rate_SOURCES = can_msg_rate.c
 heartbeat_SOURCES = heartbeat.c
 all: all-am
@@ -341,10 +334,6 @@ heartbeat$(EXEEXT): $(heartbeat_OBJECTS) $(heartbeat_DEPENDENCIES) $(EXTRA_heart
 	@rm -f heartbeat$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(heartbeat_OBJECTS) $(heartbeat_LDADD) $(LIBS)
 
-net_strength$(EXEEXT): $(net_strength_OBJECTS) $(net_strength_DEPENDENCIES) $(EXTRA_net_strength_DEPENDENCIES) 
-	@rm -f net_strength$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(net_strength_OBJECTS) $(net_strength_LDADD) $(LIBS)
-
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
 
@@ -353,7 +342,6 @@ distclean-compile:
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/can_msg_rate.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/heartbeat.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/net_strength.Po@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	$(AM_V_CC)depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.o$$||'`;\
