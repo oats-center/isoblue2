@@ -153,22 +153,22 @@ void timer_handler(int signum) {
     /* Indicate online */
     system("echo 0 > /sys/class/leds/LED_4_RED/brightness");
     system("echo 255 > /sys/class/leds/LED_4_GREEN/brightness");
-#if DEBUG
+//#if DEBUG
     printf("%f: alive\n", timestamp);
     fflush(stdout);
-#endif
+//#endif
   } else {
     /* Indicate offline */
     system("echo 0 > /sys/class/leds/LED_4_GREEN/brightness");
     system("echo 255 > /sys/class/leds/LED_4_RED/brightness");
-#if DEBUG
+//#if DEBUG
     printf("%f: dead\n", timestamp);
     fflush(stdout);
-#endif
-#if DEBUG
+//#endif
+//#if DEBUG
     printf("Try force udev triggering ...\n");
     fflush(stdout);
-#endif
+//#endif
     system("udevadm trigger /sys/class/net/wwan0");
   }
 
@@ -187,10 +187,10 @@ void timer_handler(int signum) {
     exit(EXIT_FAILURE);
   }
 
-#if DEBUG
+//#if DEBUG
   printf("%f: network strength is %d\n", timestamp, cell_ns);
   fflush(stdout);
-#endif
+//#endif
 
   if (cell_ns < -100) {
     printf("%f: Network strength %d dBm doesn't make sense! Something WRONG!\n",
