@@ -6,9 +6,21 @@
 			"name": "timestamp",
 			"type": "double"
 		},
-		{
-			"name": "heartbeat",
-			"type": "boolean"
-		}
+      {
+          "name": "wifins",
+          "type": "int"
+      },
+      {
+          "name": "cellns",
+          "type": "int"
+      },
+      {
+          "name": "netled",
+          "type": "boolean"
+      },
+      {
+          "name": "statled",
+          "type": "boolean"
+      }
 	]
 }
