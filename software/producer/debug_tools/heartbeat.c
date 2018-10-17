@@ -201,9 +201,9 @@ void timer_handler(int signum) {
   /* Check if LED4 is lit green */
   fn = popen(led4_cmd, "r");
   if (fn != NULL) {
-    printf("led4 status: %d\n", fn);
     fflush(stdout);
     fscanf(fn, "%d", &ledval);
+    printf("led4val: %d\n", ledval);
     if (ledval == 255) {
       netled = true;
     }
@@ -220,8 +220,8 @@ void timer_handler(int signum) {
   /* Check if LED5 is lit green */
   fn = popen(led5_cmd, "r");
   if (fn != NULL) {
-    printf("led5 status: %d\n", fn);
     fscanf(fn, "%d", &ledval);
+    printf("led5val: %d\n", ledval);
     if (ledval == 255) {
       statled = true;
     }
