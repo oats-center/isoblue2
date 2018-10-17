@@ -74,7 +74,7 @@ void timer_handler(int signum) {
   double timestamp;
 
   /* Heartbeat message variables */
-  static int cell_ns;
+  static int cell_ns = -80;
   static int wifi_ns = -70; //TODO: get real wifi rssi
   static int ret;
   static bool netled = false;
@@ -153,26 +153,27 @@ void timer_handler(int signum) {
     /* Indicate online */
     system("echo 0 > /sys/class/leds/LED_4_RED/brightness");
     system("echo 255 > /sys/class/leds/LED_4_GREEN/brightness");
-//#if DEBUG
+#if DEBUG
     printf("%f: alive\n", timestamp);
     fflush(stdout);
-//#endif
+#endif
   } else {
     /* Indicate offline */
     system("echo 0 > /sys/class/leds/LED_4_GREEN/brightness");
     system("echo 255 > /sys/class/leds/LED_4_RED/brightness");
-//#if DEBUG
+#if DEBUG
     printf("%f: dead\n", timestamp);
     fflush(stdout);
-//#endif
-//#if DEBUG
+#endif
+#if DEBUG
     printf("Try force udev triggering ...\n");
     fflush(stdout);
-//#endif
+#endif
     system("udevadm trigger /sys/class/net/wwan0");
   }
 
   /* Get the network strength from command */
+/*
   fn = popen(ns_cmd, "r");
   if (fn != NULL) {
     fscanf(fn, "%d", &cell_ns);
@@ -180,17 +181,16 @@ void timer_handler(int signum) {
     perror("popen");
     exit(EXIT_FAILURE);
   }
-
+*/
   /* Close the subprocess */
+/*
   if (pclose(fn) < 0) {
     perror("pclose");
     exit(EXIT_FAILURE);
   }
-
-//#if DEBUG
-  printf("%f: network strength is %d\n", timestamp, cell_ns);
+*/
+  printf("%f: cell network strength is %d\n", timestamp, cell_ns);
   fflush(stdout);
-//#endif
 
   if (cell_ns < -100) {
     printf("%f: Network strength %d dBm doesn't make sense! Something WRONG!\n",
@@ -198,35 +198,43 @@ void timer_handler(int signum) {
   }
 
   /* Check if LED4 is lit green */
+/*
   fn = popen(led4_cmd, "r");
   if (fn != NULL) {
+    printf("led4 status: %d\n", fn);
+    fflush(stdout);
     fscanf(fn, "%d", &netled);
   } else {
     perror("popen");
     exit(EXIT_FAILURE);
   }
-
+*/
   /* Close the subprocess */
+/*
   if (pclose(fn) < 0) {
     perror("pclose");
     exit(EXIT_FAILURE);
   }
-
+*/
   /* Check if LED5 is lit green */
+/*
   fn = popen(led5_cmd, "r");
   if (fn != NULL) {
+    printf("led5 status: %d\n", fn);
+    fflush(stdout);
     fscanf(fn, "%d", &statled);
   } else {
     perror("popen");
     exit(EXIT_FAILURE);
   }
-
+*/
   /* Close the subprocess */
+/*
   if (pclose(fn) < 0) {
     perror("pclose");
     exit(EXIT_FAILURE);
   }
-
+*/
   avro_datum_t ts_datum = avro_double(timestamp);
   avro_datum_t cell_ns_datum = avro_int32(cell_ns);
   avro_datum_t wifi_ns_datum = avro_int32(wifi_ns);
