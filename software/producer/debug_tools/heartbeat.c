@@ -79,7 +79,7 @@ void timer_handler(int signum) {
   static int ret;
   static bool netled = false;
   static bool statled = false;
-  static FILE *fn;
+  FILE *fn;
 
   /* Broker conf */
   if (conf == NULL) {
@@ -173,7 +173,6 @@ void timer_handler(int signum) {
   }
 
   /* Get the network strength from command */
-/*
   fn = popen(ns_cmd, "r");
   if (fn != NULL) {
     fscanf(fn, "%d", &cell_ns);
@@ -181,14 +180,13 @@ void timer_handler(int signum) {
     perror("popen");
     exit(EXIT_FAILURE);
   }
-*/
+
   /* Close the subprocess */
-/*
   if (pclose(fn) < 0) {
     perror("pclose");
     exit(EXIT_FAILURE);
   }
-*/
+
   printf("%f: cell network strength is %d\n", timestamp, cell_ns);
   fflush(stdout);
 
@@ -198,7 +196,6 @@ void timer_handler(int signum) {
   }
 
   /* Check if LED4 is lit green */
-/*
   fn = popen(led4_cmd, "r");
   if (fn != NULL) {
     printf("led4 status: %d\n", fn);
@@ -208,16 +205,13 @@ void timer_handler(int signum) {
     perror("popen");
     exit(EXIT_FAILURE);
   }
-*/
+
   /* Close the subprocess */
-/*
   if (pclose(fn) < 0) {
     perror("pclose");
     exit(EXIT_FAILURE);
   }
-*/
   /* Check if LED5 is lit green */
-/*
   fn = popen(led5_cmd, "r");
   if (fn != NULL) {
     printf("led5 status: %d\n", fn);
@@ -227,14 +221,12 @@ void timer_handler(int signum) {
     perror("popen");
     exit(EXIT_FAILURE);
   }
-*/
   /* Close the subprocess */
-/*
   if (pclose(fn) < 0) {
     perror("pclose");
     exit(EXIT_FAILURE);
   }
-*/
+
   avro_datum_t ts_datum = avro_double(timestamp);
   avro_datum_t cell_ns_datum = avro_int32(cell_ns);
   avro_datum_t wifi_ns_datum = avro_int32(wifi_ns);
