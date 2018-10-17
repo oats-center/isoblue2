@@ -79,7 +79,7 @@ void timer_handler(int signum) {
   static int ret;
   static bool netled = false;
   static bool statled = false;
-  static int ledval;
+  int ledval = 0;
 
   /* File pointer for running commands */
   FILE *fn;
