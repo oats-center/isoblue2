@@ -74,9 +74,9 @@ void timer_handler(int signum) {
   double timestamp;
 
   /* Heartbeat message variables */
-  static int cell_ns = -80;
-  static int wifi_ns = -70; //TODO: get real wifi rssi
-  static int ret;
+  int cell_ns = -80;
+  int wifi_ns = -70; //TODO: get real wifi rssi
+  int ret;
   bool netled = false;
   bool statled = false;
   int ledval = 0;
@@ -209,6 +209,7 @@ void timer_handler(int signum) {
     } else {
       netled = false;
     }
+    printf("netled: %d\n", netled);
   } else {
     perror("popen");
     exit(EXIT_FAILURE);
@@ -229,6 +230,7 @@ void timer_handler(int signum) {
     } else {
       statled = false;
     }
+    printf("statled: %d\n", statled);
   } else {
     perror("popen");
     exit(EXIT_FAILURE);
