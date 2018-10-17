@@ -67,7 +67,7 @@ void timer_handler(int signum) {
   static avro_writer_t writer = NULL;
   static avro_schema_t d_hb_schema = NULL;
   static avro_datum_t d_hb = NULL;
-  static char buf[20];
+  static char buf[50];
 
   /* timeval struct */
   struct timeval tp;
@@ -313,7 +313,7 @@ int main(int argc, char *argv[]) {
   printf("the key is: %s\n", key);
 
   /* Install timer_handler as the signal handler for SIGALRM. */
-  memset (&sa, 0, sizeof(sa));
+  memset(&sa, 0, sizeof(sa));
   sa.sa_handler = &timer_handler;
   sigaction(SIGALRM, &sa, NULL);
 
