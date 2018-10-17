@@ -37,7 +37,7 @@
 #include <avro.h>
 #include <librdkafka/rdkafka.h>
 
-char key[100];
+volatile char key[100];
 static char *brokers = "localhost:9092";
 static char *ns_cmd = "qmicli -p -d /dev/cdc-wdm0 --nas-get-signal-strength | \
   head -n 3 | tail -n 1 | sed \"s/^.*'\\([-0-9]*\\) dBm'[^']*$/\\1/\"";
