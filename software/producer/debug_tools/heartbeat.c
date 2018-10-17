@@ -67,7 +67,7 @@ void timer_handler(int signum) {
   static avro_writer_t writer = NULL;
   static avro_schema_t d_hb_schema = NULL;
   static avro_datum_t d_hb = NULL;
-  static char buf[50];
+  static char buf[100];
 
   /* timeval struct */
   struct timeval tp;
