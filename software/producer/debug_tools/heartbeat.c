@@ -247,6 +247,8 @@ void timer_handler(int signum) {
     exit(EXIT_FAILURE);
   }
 
+  printf("the key is: %s\n", key);
+
   if (rd_kafka_produce(rkt, RD_KAFKA_PARTITION_UA, RD_KAFKA_MSG_F_COPY,
       buf, avro_writer_tell(writer), key, strlen(key), NULL) == -1) {
     fprintf(stderr, "%% Failed to produce to topic %s "
@@ -307,6 +309,8 @@ int main(int argc, char *argv[]) {
   strcpy(key, "hb");
   strcat(key, ":");
   strcat(key, id);
+
+  printf("the key is: %s\n", key);
 
   /* Install timer_handler as the signal handler for SIGALRM. */
   memset (&sa, 0, sizeof(sa));
