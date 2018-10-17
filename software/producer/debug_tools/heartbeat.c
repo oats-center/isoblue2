@@ -79,6 +79,9 @@ void timer_handler(int signum) {
   static int ret;
   static bool netled = false;
   static bool statled = false;
+  static int ledval;
+
+  /* File pointer for running commands */
   FILE *fn;
 
   /* Broker conf */
@@ -200,7 +203,10 @@ void timer_handler(int signum) {
   if (fn != NULL) {
     printf("led4 status: %d\n", fn);
     fflush(stdout);
-    fscanf(fn, "%d", &netled);
+    fscanf(fn, "%d", &ledval);
+    if (ledval == 255) {
+      netled = true;
+    }
   } else {
     perror("popen");
     exit(EXIT_FAILURE);
@@ -215,8 +221,10 @@ void timer_handler(int signum) {
   fn = popen(led5_cmd, "r");
   if (fn != NULL) {
     printf("led5 status: %d\n", fn);
-    fflush(stdout);
-    fscanf(fn, "%d", &statled);
+    fscanf(fn, "%d", &ledval);
+    if (ledval == 255) {
+      statled = true;
+    }
   } else {
     perror("popen");
     exit(EXIT_FAILURE);
