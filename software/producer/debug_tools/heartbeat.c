@@ -77,8 +77,8 @@ void timer_handler(int signum) {
   static int cell_ns = -80;
   static int wifi_ns = -70; //TODO: get real wifi rssi
   static int ret;
-  static bool netled = false;
-  static bool statled = false;
+  bool netled = false;
+  bool statled = false;
   int ledval = 0;
 
   /* File pointer for running commands */
@@ -206,6 +206,8 @@ void timer_handler(int signum) {
     printf("led4val: %d\n", ledval);
     if (ledval == 255) {
       netled = true;
+    } else {
+      netled = false;
     }
   } else {
     perror("popen");
@@ -224,6 +226,8 @@ void timer_handler(int signum) {
     printf("led5val: %d\n", ledval);
     if (ledval == 255) {
       statled = true;
+    } else {
+      statled = false;
     }
   } else {
     perror("popen");
