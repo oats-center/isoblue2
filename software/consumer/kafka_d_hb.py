@@ -21,13 +21,15 @@ if __name__ == "__main__":
     # load avro schema
     schema = avro.schema.parse(open(schema_path).read())
 
-    consumer = KafkaConsumer(topic, group_id=None)
+    consumer = KafkaConsumer(topic, group_id='debugtest')
 
-    for message in consumer: 
+    for message in consumer:
         # disregard any message that does not have heartbeat key
         key_splited = message.key.split(':')
         if key_splited[0] != 'hb':
             continue
+
+        isoblue_id = key_splited[1]
 
         # setup avro decoder
         bytes_reader = io.BytesIO(message.value)
@@ -35,9 +37,10 @@ if __name__ == "__main__":
         reader = avro.io.DatumReader(schema)
         hb_datum = reader.read(decoder)
 
-        hb = hb_datum['heartbeat']
         timestamp = hb_datum['timestamp']
-        isoblue_id = key_splited[1]
+        cellrssi = hb_datum['cellns']
+        wifirssi = hb_datum['wifins']
+        statled = hb_datum['statled']
+        netled = hb_datum['netled']
 
-        if hb is True:
-            print "{:.6f}".format(timestamp), isoblue_id, 'alive'
+        print timestamp, isoblue_id, cellrssi, statled, netled

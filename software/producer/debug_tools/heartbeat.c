@@ -77,6 +77,7 @@ void timer_handler(int signum) {
   int cell_ns = -80;
   int wifi_ns = -70; //TODO: get real wifi rssi
   int ret;
+
   bool netled = false;
   bool statled = false;
   int ledval = 0;
@@ -144,14 +145,14 @@ void timer_handler(int signum) {
   gettimeofday(&tp, NULL);
   timestamp = tp.tv_sec + tp.tv_usec / 1000000.0;
 
-  /* Check if heartbeat */
+  /* Check if ISOBlue has Internet */
   ret = system("wget -q --spider http://google.com");
   if (ret == -1) {
     perror("system");
     exit(EXIT_FAILURE);
   }
 
-  /* If network checking returns error */
+  /* Change LED4 and 5 status based on Internet connectivity */
   if (WEXITSTATUS(ret) == 0) {
     /* Indicate online */
     system("echo 0 > /sys/class/leds/LED_4_RED/brightness");
@@ -168,11 +169,6 @@ void timer_handler(int signum) {
     printf("%f: dead\n", timestamp);
     fflush(stdout);
 #endif
-#if DEBUG
-    printf("Try force udev triggering ...\n");
-    fflush(stdout);
-#endif
-    system("udevadm trigger /sys/class/net/wwan0");
   }
 
   /* Get the network strength from command */
@@ -241,6 +237,7 @@ void timer_handler(int signum) {
     exit(EXIT_FAILURE);
   }
 
+  /* Construct avro data pieces */
   avro_datum_t ts_datum = avro_double(timestamp);
   avro_datum_t cell_ns_datum = avro_int32(cell_ns);
   avro_datum_t wifi_ns_datum = avro_int32(wifi_ns);
@@ -261,7 +258,7 @@ void timer_handler(int signum) {
     exit(EXIT_FAILURE);
   }
 
-  printf("the key is: %s\n", key);
+//  printf("the key is: %s\n", key);
 
   if (rd_kafka_produce(rkt, RD_KAFKA_PARTITION_UA, RD_KAFKA_MSG_F_COPY,
       buf, avro_writer_tell(writer), key, strlen(key), NULL) == -1) {
